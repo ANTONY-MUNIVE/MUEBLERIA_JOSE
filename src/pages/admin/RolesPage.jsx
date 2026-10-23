@@ -13,8 +13,13 @@ import {
 
 // 1. DEFINIMOS LOS MÓDULOS DISPONIBLES (IDs fijos)
 export const SYSTEM_MODULES = [
+  { id: 'ventas', label: 'Ventas en tienda' },
+  { id: 'disponibilidad', label: 'Consulta de disponibilidad' },
+  { id: 'inventario', label: 'Inventario (ingresos, ajustes y kárdex)' },
+  { id: 'pedidos_personalizados', label: 'Pedidos personalizados' },
+  { id: 'reportes', label: 'Reportes de ventas y stock' },
   { id: 'dashboard', label: 'Dashboard Principal' },
-  { id: 'pedidos', label: 'Gestión de Pedidos' },
+  { id: 'pedidos', label: 'Pedidos en línea' },
   { id: 'productos', label: 'Inventario (Productos/Categorías)' },
   { id: 'clientes', label: 'Mensajes y Clientes' },
   { id: 'web', label: 'Configuración Web (Portada/Info)' },
@@ -36,8 +41,21 @@ const RolesPage = () => {
   const [foundUser, setFoundUser] = useState(null);
   const [userRoleSelect, setUserRoleSelect] = useState("");
 
+  // Personal con acceso al panel (RF04)
+  const [personal, setPersonal] = useState([]);
+
+  const fetchPersonal = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, "users"), where("role", "!=", "cliente")));
+      setPersonal(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (error) {
+      console.error("Error cargando personal:", error);
+    }
+  };
+
   useEffect(() => {
     fetchRoles();
+    fetchPersonal();
   }, []);
 
   const fetchRoles = async () => {
@@ -130,6 +148,7 @@ const RolesPage = () => {
     alert("Rol de usuario actualizado");
     setFoundUser(null);
     setEmailSearch("");
+    fetchPersonal();
   };
 
   return (
@@ -263,6 +282,21 @@ const RolesPage = () => {
                         <button onClick={handleUpdateUserRole} className="w-full bg-blue-600 text-white py-2 rounded font-bold">Confirmar Cambio</button>
                     </div>
                 )}
+
+                <p className="text-xs text-gray-500 mt-4">Para dar acceso a un trabajador: el trabajador crea su cuenta en «Registrarse» y luego aquí se busca su correo y se le asigna un rol.</p>
+                <h3 className="font-bold text-gray-700 mt-6 mb-2">Personal con acceso al panel</h3>
+                <table className="w-full text-sm">
+                    <tbody className="divide-y">
+                        {personal.map(u => (
+                            <tr key={u.id}>
+                                <td className="py-2 font-medium">{u.nombre || '—'}</td>
+                                <td className="py-2 text-gray-500">{u.email}</td>
+                                <td className="py-2 text-right"><span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold uppercase">{u.role}</span></td>
+                            </tr>
+                        ))}
+                        {personal.length === 0 && <tr><td className="py-2 text-gray-400">Aún no hay personal asignado.</td></tr>}
+                    </tbody>
+                </table>
             </div>
         </div>
 

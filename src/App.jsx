@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import Login from './pages/Login'; // <--- IMPORTAR LOGIN
@@ -28,6 +28,14 @@ import AdminPublications from './pages/admin/AdminPublications';
 import AdminAbout from './pages/admin/AdminAbout';
 import AdminMessages from './pages/admin/AdminMessages';
 import RolesPage from './pages/admin/RolesPage';
+
+// Módulos de tienda (ventas, inventario, pedidos y reportes): se cargan bajo demanda
+const AdminVentas = lazy(() => import('./pages/admin/AdminVentas'));
+const AdminDisponibilidad = lazy(() => import('./pages/admin/AdminDisponibilidad'));
+const AdminInventario = lazy(() => import('./pages/admin/AdminInventario'));
+const AdminPedidosPersonalizados = lazy(() => import('./pages/admin/AdminPedidosPersonalizados'));
+const AdminReportes = lazy(() => import('./pages/admin/AdminReportes'));
+const Cargando = () => <div className="p-8 text-center text-gray-500"><i className="fas fa-spinner fa-spin mr-2"></i>Cargando...</div>;
 
 // Componente de Seguridad
 import ProtectedRoute from './components/admin/ProtectedRoute'; // <--- IMPORTAR GUARDIA
@@ -69,6 +77,11 @@ function App() {
                 <Route path="info-empresa" element={<AdminAbout />} />
                 <Route path="mensajes" element={<AdminMessages />} />
                 <Route path="/admin/roles" element={<RolesPage />} />
+                <Route path="ventas" element={<Suspense fallback={<Cargando />}><AdminVentas /></Suspense>} />
+                <Route path="disponibilidad" element={<Suspense fallback={<Cargando />}><AdminDisponibilidad /></Suspense>} />
+                <Route path="inventario" element={<Suspense fallback={<Cargando />}><AdminInventario /></Suspense>} />
+                <Route path="pedidos-personalizados" element={<Suspense fallback={<Cargando />}><AdminPedidosPersonalizados /></Suspense>} />
+                <Route path="reportes" element={<Suspense fallback={<Cargando />}><AdminReportes /></Suspense>} />
                 
             </Route>
         </Route>

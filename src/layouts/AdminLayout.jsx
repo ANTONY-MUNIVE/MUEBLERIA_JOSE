@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config'; 
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { APP_VERSION } from '../config/app';
 
 const AdminLayout = () => {
   const { logout, user } = useAuth();
@@ -162,6 +163,37 @@ const AdminLayout = () => {
         </div>
         
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto whitespace-nowrap">
+          {(canAccess('ventas') || canAccess('disponibilidad') || canAccess('inventario') || canAccess('pedidos_personalizados') || canAccess('reportes')) && (
+            <div className="pb-2 px-4 text-xs font-bold text-gray-500 uppercase">Tienda</div>
+          )}
+          {canAccess('ventas') && (
+             <Link to="/admin/ventas" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
+                <i className="fas fa-cash-register mr-3 w-5 text-center"></i> Ventas
+             </Link>
+          )}
+          {canAccess('disponibilidad') && (
+             <Link to="/admin/disponibilidad" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
+                <i className="fas fa-search mr-3 w-5 text-center"></i> Disponibilidad
+             </Link>
+          )}
+          {canAccess('inventario') && (
+             <Link to="/admin/inventario" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
+                <i className="fas fa-warehouse mr-3 w-5 text-center"></i> Inventario
+             </Link>
+          )}
+          {canAccess('pedidos_personalizados') && (
+             <Link to="/admin/pedidos-personalizados" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
+                <i className="fas fa-hammer mr-3 w-5 text-center"></i> Pedidos personalizados
+             </Link>
+          )}
+          {canAccess('reportes') && (
+             <Link to="/admin/reportes" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
+                <i className="fas fa-file-alt mr-3 w-5 text-center"></i> Reportes
+             </Link>
+          )}
+          {(canAccess('dashboard') || canAccess('pedidos') || canAccess('productos') || canAccess('clientes')) && (
+            <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-500 uppercase">Gestión</div>
+          )}
           {canAccess('dashboard') && (
              <Link to="/admin/dashboard" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
                 <i className="fas fa-chart-line mr-3 w-5 text-center"></i> Dashboard
@@ -170,7 +202,7 @@ const AdminLayout = () => {
 
           {canAccess('pedidos') && (
              <Link to="/admin/pedidos" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                 <i className="fas fa-shopping-bag mr-3 w-5 text-center"></i> Pedidos
+                 <i className="fas fa-shopping-bag mr-3 w-5 text-center"></i> Pedidos en línea
              </Link>
           )}
 
@@ -227,6 +259,7 @@ const AdminLayout = () => {
                 </div>
             </div>
             
+            <div className="text-[10px] text-gray-500 text-center mb-2">Versión {APP_VERSION}</div>
             <button 
                 onClick={handleLogout}
                 className="w-full bg-red-600/90 hover:bg-red-600 text-white py-2 rounded transition flex items-center justify-center gap-2 text-sm font-bold"

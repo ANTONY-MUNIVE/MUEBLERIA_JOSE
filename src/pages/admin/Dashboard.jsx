@@ -30,7 +30,7 @@ const Dashboard = () => {
         const prodSnap = await getDocs(collection(db, "muebles"));
         const products = prodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        const outOfStock = products.filter(p => p.stock === undefined || p.stock <= 5);
+        const outOfStock = products.filter(p => p.stock === undefined || p.stock <= (p.stockMinimo ?? 5));
         outOfStock.sort((a, b) => (a.stock || 0) - (b.stock || 0));
         setLowStockProducts(outOfStock);
 
