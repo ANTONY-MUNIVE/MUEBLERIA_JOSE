@@ -1,4 +1,4 @@
-# Casos de prueba de la aplicación (versión 2.1.0)
+# Casos de prueba de la aplicación (versión 2.1.1)
 
 Esta guía sirve para llenar el registro técnico **RT1** y la hoja **H6** de la tesis
 (indicadores AF1 y AF2). Cada caso corresponde a un requisito funcional (RF) de la
@@ -26,7 +26,7 @@ Antes de empezar:
 | CP13 | RF13 | Pulsar «Nueva venta» y completar los 3 pasos: Cliente → Muebles → Pago. | Se guarda con código `V-00001`, se genera la nota de venta y el aviso muestra la duración del formulario. |
 | CP14 | RF14 | Pulsar «Continuar» sin apellidos; en un pedido, sin celular; en Muebles, con cantidad 0 o precio vacío. | No avanza de paso; cada campo con error se marca en rojo con su mensaje y los datos escritos se conservan. Si se guarda con un error de un paso anterior, la app vuelve a ese paso. |
 | CP15 | RF15 | Registrar una venta con dos muebles distintos. | La venta muestra ambos muebles y el total correcto. |
-| CP16 | RF16 | Registrar una venta pagada con Yape (monto, boleta y número de operación) y otra en efectivo con vuelto. | Se guardan el método, el monto, la boleta y el vuelto calculado. |
+| CP16 | RF16 | Registrar una venta pagada con Yape (monto, boleta, número de operación y captura) y otra en efectivo con vuelto. | Se guardan el método, el monto, la boleta y el vuelto calculado; la captura se comprime y se ve con «Ver captura de Yape». |
 | CP17 | RF17 | Vender 2 unidades de `PRB-001` (stock 5); luego intentar vender 4. | El stock queda en 3 y el kárdex muestra «Venta −2»; la segunda venta se rechaza por stock insuficiente. |
 | CP18 | RF18 | Corregir la venta (cambiar la cantidad) y luego anular otra venta. | La corrección ajusta el stock por la diferencia y guarda el historial; la anulación devuelve el stock. Una venta entregada ya no se puede corregir ni anular. |
 | CP19 | RF19 | Pulsar el ícono PDF de una venta. | Se abre la nota de venta con el detalle, el total y la boleta. |

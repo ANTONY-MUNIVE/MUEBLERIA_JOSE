@@ -3,11 +3,10 @@
 // la venta, el descuento de stock y el movimiento de inventario se guarden juntos
 // o no se guarde nada (RF13–RF18, RF22–RF23).
 import {
-  collection, doc, runTransaction, serverTimestamp, addDoc, getDocs, query, where,
+  collection, doc, getDoc, runTransaction, serverTimestamp, addDoc, getDocs, query, where,
   writeBatch, updateDoc, arrayUnion,
 } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage } from '../firebase/config';
+import { db, auth } from '../firebase/config';
 import { APP_VERSION } from '../config/app';
 import { calcularTotal, redondear } from '../utils/validaciones';
 
@@ -98,16 +97,33 @@ const armarPago = (pago = {}, total) => {
     vuelto: redondear(Math.max(0, monto - total)),
     numeroBoleta: String(pago.numeroBoleta || '').trim(),
     operacionYape: String(pago.operacionYape || '').trim(),
-    capturaUrl: pago.capturaUrl || null,
+    // Ventas antiguas con Storage guardaban la URL; ahora la captura va en capturasYape/{ventaId}
+    capturaUrl: pago.metodo === 'yape' ? (pago.capturaUrl || null) : null,
+    tieneCaptura: pago.metodo === 'yape' && Boolean(pago.tieneCaptura),
   };
 };
 
-/** Sube la captura de Yape a Firebase Storage y devuelve su URL. */
-export const subirCapturaYape = async (archivo) => {
-  const nombre = `yape/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${archivo.name}`;
-  const ref = storageRef(storage, nombre);
-  await uploadBytes(ref, archivo);
-  return getDownloadURL(ref);
+// ---------------------------------------------------------------------------
+// CAPTURAS DE YAPE (en Firestore, sin Storage)
+// La imagen ya comprimida (data URL JPEG, < 400 KB) se guarda en capturasYape/{ventaId},
+// separada de la venta para que la lista de ventas no descargue imágenes.
+// ---------------------------------------------------------------------------
+
+const guardarCapturaEnTx = (tx, ventaId, codigo, dataUrl) => {
+  tx.set(doc(db, 'capturasYape', ventaId), {
+    ventaId,
+    codigo,
+    dataUrl,
+    bytes: dataUrl.length,
+    subidoPor: usuarioActual().email,
+    creadoEn: serverTimestamp(),
+  });
+};
+
+/** Devuelve el data URL de la captura de Yape de una venta, o null si no tiene. */
+export const obtenerCapturaYape = async (ventaId) => {
+  const snap = await getDoc(doc(db, 'capturasYape', ventaId));
+  return snap.exists() ? snap.data().dataUrl : null;
 };
 
 // ---------------------------------------------------------------------------
@@ -123,7 +139,8 @@ export const subirCapturaYape = async (archivo) => {
 export const registrarVenta = async (datos, medicion = {}) => {
   const items = normalizarItems(datos.items);
   const total = calcularTotal(items);
-  const pago = armarPago(datos.pago, total);
+  const captura = datos.pago?.metodo === 'yape' ? datos.capturaYape : null;
+  const pago = armarPago({ ...datos.pago, tieneCaptura: Boolean(captura) }, total);
 
   return runTransaction(db, async (tx) => {
     // 1. Lecturas (todas antes de escribir)
@@ -181,6 +198,7 @@ export const registrarVenta = async (datos, medicion = {}) => {
       historial: [],
     };
     tx.set(ventaRef, venta);
+    if (captura) guardarCapturaEnTx(tx, ventaRef.id, codigo, captura);
     return { id: ventaRef.id, ...venta, creadoEn: new Date() };
   });
 };
@@ -192,7 +210,7 @@ export const registrarVenta = async (datos, medicion = {}) => {
 export const corregirVenta = async (ventaId, datos, motivo) => {
   const items = normalizarItems(datos.items);
   const total = calcularTotal(items);
-  const pago = armarPago(datos.pago, total);
+  const captura = datos.pago?.metodo === 'yape' ? datos.capturaYape : null;
 
   return runTransaction(db, async (tx) => {
     const ventaRef = doc(db, 'ventas', ventaId);
@@ -201,6 +219,9 @@ export const corregirVenta = async (ventaId, datos, motivo) => {
     const v = vSnap.data();
     if (v.estado !== 'registrada') throw new Error('Solo se pueden corregir ventas registradas.');
     if (v.entregada) throw new Error('La venta ya fue entregada; no se puede corregir.');
+
+    // La captura anterior se conserva si sigue siendo Yape y no se adjuntó otra
+    const pago = armarPago({ ...datos.pago, tieneCaptura: Boolean(captura) || Boolean(v.pago?.tieneCaptura) }, total);
 
     const antes = cantidadesPorMueble(v.items);
     const despues = cantidadesPorMueble(items);
@@ -225,6 +246,8 @@ export const corregirVenta = async (ventaId, datos, motivo) => {
         motivo: `Corrección de ${v.codigo}: ${motivo}`, documento: pago.numeroBoleta, ventaId,
       });
     });
+
+    if (captura) guardarCapturaEnTx(tx, ventaId, v.codigo, captura);
 
     const detalle = items.map((it) => ({ ...it, codigo: snaps[it.muebleId].data().codigo || '', nombre: snaps[it.muebleId].data().nombre || '' }));
     tx.update(ventaRef, {

@@ -3,7 +3,10 @@
 Las reglas ya están en el repositorio:
 
 - `firestore.rules`: todas las colecciones de la app (registrado en `firebase.json`).
-- `storage.rules`: carpeta `yape/` de las capturas de pago. Se publica a mano desde la consola.
+
+**No se usa Firebase Storage** (requiere el plan Blaze). La captura de Yape se comprime en el
+navegador (JPEG, máximo 1400 px, menos de 400 KB) y se guarda como texto base64 en
+`capturasYape/{id de la venta}`, en la misma transacción que la venta.
 
 ## Cómo funcionan los permisos (versión compatible)
 
@@ -14,6 +17,7 @@ Son las reglas originales del proyecto con el acceso del personal a la versión 
 | `muebles`, `categories`, `content`, `publications` | Todos | `muebles`: almacenero, admin o cualquier miembro del personal (las ventas cambian el stock). El resto: almacenero o admin |
 | `ventas`, `contadores`, `pedidosPersonalizados` | Personal (rol distinto de «cliente») | Personal |
 | `movimientos`, `metricas` | Personal | Solo crear; nadie edita ni borra |
+| `capturasYape` | Personal | Personal (imagen menor de 1 MB); borrar: admin |
 | `orders` | Dueño, admin, carpintero, almacenero | Crear: cualquiera con sesión. Actualizar: admin, carpintero, almacenero |
 | `users` | Uno mismo, admin | Uno mismo **sin tocar su rol**; admin |
 | `roles` | Cualquiera con sesión | Admin |
@@ -37,7 +41,6 @@ firebase deploy --only firestore:rules
 `firestore.rules` → **Publicar**. La consola marca en rojo cualquier error antes de publicar.
 En esa misma pantalla, el historial (a la izquierda) permite volver a una versión anterior.
 
-Storage: consola → Storage → Reglas → pegue `storage.rules` → **Publicar**.
 
 ## Después de publicar
 

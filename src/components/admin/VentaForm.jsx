@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { validarVenta, calcularTotal } from '../../utils/validaciones';
 import { hoyISO } from '../../utils/fechas';
 import { formatPrice } from '../../utils/images';
-import { registrarVenta, corregirVenta, subirCapturaYape, medir } from '../../services/ventasService';
+import { registrarVenta, corregirVenta, medir } from '../../services/ventasService';
+import { comprimirImagen } from '../../utils/imagenes';
+import VisorCaptura from './VisorCaptura';
 import { STOCK_MINIMO_DEFAULT } from '../../config/app';
 
 const normalizar = (t) => String(t || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
@@ -18,6 +20,7 @@ const estadoInicial = (venta) => venta ? {
     numeroBoleta: venta.pago?.numeroBoleta || '',
     operacionYape: venta.pago?.operacionYape || '',
     capturaUrl: venta.pago?.capturaUrl || null,
+    tieneCaptura: Boolean(venta.pago?.tieneCaptura),
   },
   observaciones: venta.observaciones || '',
 } : {
@@ -85,7 +88,10 @@ const VentaForm = ({ muebles, ventaACorregir = null, onGuardado, onCancel }) => 
   const [errorGeneral, setErrorGeneral] = useState('');
   const [sacudir, setSacudir] = useState(0);
   const [guardando, setGuardando] = useState(false);
-  const [captura, setCaptura] = useState(null);
+  const [captura, setCaptura] = useState(null); // { dataUrl, bytes, nombre } ya comprimida
+  const [comprimiendo, setComprimiendo] = useState(false);
+  const [errorCaptura, setErrorCaptura] = useState('');
+  const [verCaptura, setVerCaptura] = useState(null); // 'nueva' | 'guardada'
   const [motivo, setMotivo] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const abiertoEn = useRef(null);
@@ -200,19 +206,9 @@ const VentaForm = ({ muebles, ventaACorregir = null, onGuardado, onCancel }) => 
     setGuardando(true);
     try {
       let pago = { ...datos.pago };
-      if (pago.metodo === 'yape' && captura) {
-        try {
-          pago.capturaUrl = await subirCapturaYape(captura);
-        } catch (err) {
-          console.error(err);
-          if (!window.confirm('No se pudo subir la captura de Yape. ¿Guardar la venta sin la captura?')) {
-            setGuardando(false);
-            return;
-          }
-        }
-      }
-      if (pago.metodo !== 'yape') pago = { ...pago, operacionYape: '', capturaUrl: null };
-      const payload = { ...datos, pago };
+      if (pago.metodo !== 'yape') pago = { ...pago, operacionYape: '', capturaUrl: null, tieneCaptura: false };
+      // La captura (ya comprimida) se guarda en la misma transacción que la venta
+      const payload = { ...datos, pago, capturaYape: pago.metodo === 'yape' ? captura?.dataUrl || null : null };
 
       if (ventaACorregir) {
         await medir('corregir_venta', () => corregirVenta(ventaACorregir.id, payload, motivo.trim()));
@@ -418,13 +414,44 @@ const VentaForm = ({ muebles, ventaACorregir = null, onGuardado, onCancel }) => 
             <Campo id="v-yape" label="N.° de operación Yape">
               <input id="v-yape" value={datos.pago.operacionYape} onChange={(e) => setPago('operacionYape', e.target.value)} className={claseInput()} />
             </Campo>
-            <Campo id="v-captura" label="Captura de Yape (opcional)">
+            <Campo id="v-captura" label="Captura de Yape (opcional)" error={errorCaptura}>
               <label htmlFor="v-captura" className="flex items-center gap-3 h-12 px-4 rounded-2xl border border-dashed border-gray-400 bg-white cursor-pointer hover:border-terracota transition">
-                <i className="fas fa-camera text-cafe"></i>
-                <span className="text-sm truncate">{captura ? captura.name : 'Elegir imagen'}</span>
+                {captura ? (
+                  <img src={captura.dataUrl} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                ) : (
+                  <i className={`fas ${comprimiendo ? 'fa-spinner fa-spin' : 'fa-camera'} text-cafe`}></i>
+                )}
+                <span className="text-sm truncate flex-1">
+                  {comprimiendo ? 'Comprimiendo...' : captura ? `${captura.nombre} · ${Math.round(captura.bytes / 1024)} KB` : (datos.pago.tieneCaptura || datos.pago.capturaUrl) ? 'Reemplazar captura' : 'Elegir imagen'}
+                </span>
               </label>
-              <input id="v-captura" type="file" accept="image/*" onChange={(e) => setCaptura(e.target.files?.[0] || null)} className="sr-only" />
-              {datos.pago.capturaUrl && !captura && <a href={datos.pago.capturaUrl} target="_blank" rel="noreferrer" className="text-xs font-bold underline">Ver captura guardada</a>}
+              <input
+                id="v-captura"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={async (e) => {
+                  const archivo = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!archivo) return;
+                  setErrorCaptura('');
+                  setComprimiendo(true);
+                  try {
+                    const r = await comprimirImagen(archivo);
+                    setCaptura({ dataUrl: r.dataUrl, bytes: r.bytes, nombre: archivo.name });
+                  } catch (err) {
+                    setCaptura(null);
+                    setErrorCaptura(err.message);
+                  } finally {
+                    setComprimiendo(false);
+                  }
+                }}
+              />
+              <div className="flex gap-3 mt-1.5 text-xs font-bold">
+                {captura && <button type="button" onClick={() => setVerCaptura('nueva')} className="underline">Ver</button>}
+                {captura && <button type="button" onClick={() => setCaptura(null)} className="underline text-red-700">Quitar</button>}
+                {!captura && (datos.pago.tieneCaptura || datos.pago.capturaUrl) && <button type="button" onClick={() => setVerCaptura('guardada')} className="underline">Ver captura guardada</button>}
+              </div>
             </Campo>
           </div>
         )}
@@ -556,6 +583,15 @@ const VentaForm = ({ muebles, ventaACorregir = null, onGuardado, onCancel }) => 
           )}
         </button>
       </div>
+      {verCaptura && (
+        <VisorCaptura
+          ventaId={ventaACorregir?.id}
+          codigo={ventaACorregir?.codigo}
+          dataUrlLocal={verCaptura === 'nueva' ? captura?.dataUrl : null}
+          urlAntigua={verCaptura === 'guardada' ? datos.pago.capturaUrl : null}
+          onClose={() => setVerCaptura(null)}
+        />
+      )}
     </form>
   );
 };

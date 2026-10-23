@@ -7,7 +7,7 @@ Responde en español; todo el texto visible de la app va en español de Perú.
 ## Stack y comandos
 
 - React 19 + Vite 7 + Tailwind CSS 4 (tema en `src/index.css`, sin `tailwind.config` activo para colores).
-- Firebase 12: Firestore, Auth y Storage (`src/firebase/config.js`, variables en `.env`, que no se sube).
+- Firebase 12: Firestore y Auth; Storage no se usa (`src/firebase/config.js`, variables en `.env`, que no se sube).
 - `npm run dev` (desarrollo), `npm run build`, `npx eslint src`.
 - Hosting: Firebase Hosting (`firebase deploy --only hosting`, sirve `dist/`).
 
@@ -48,7 +48,7 @@ Responde en español; todo el texto visible de la app va en español de Perú.
 
 ## Pendientes conocidos
 
-- Reglas en `firestore.rules` (versión compatible: reglas originales + `esPersonal()` para la v2; se publican con `firebase deploy --only firestore:rules`) y `storage.rules` (se pega en la consola). Explicación en `docs/FIRESTORE_REGLAS.md`. Los roles se guardan con el nombre como ID (`roles/{nombre}`).
+- Reglas en `firestore.rules` (versión compatible: reglas originales + `esPersonal()` para la v2; se publican con `firebase deploy --only firestore:rules`). No se usa Storage (plan Spark): la captura de Yape se comprime con `src/utils/imagenes.js` y va en `capturasYape/{ventaId}` dentro de la transacción de la venta. Explicación en `docs/FIRESTORE_REGLAS.md`. Los roles se guardan con el nombre como ID (`roles/{nombre}`).
 - Los muebles antiguos no tienen código: Inventario → «Generar códigos faltantes».
 - La importación desde Excel no revisa códigos duplicados.
 - Hay 7 errores de ESLint anteriores a la v2 (AuthContext, CartContext, AdminCategories,

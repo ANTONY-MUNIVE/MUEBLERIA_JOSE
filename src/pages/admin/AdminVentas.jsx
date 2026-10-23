@@ -3,6 +3,7 @@ import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import VentaForm from '../../components/admin/VentaForm';
 import MotivoModal from '../../components/admin/MotivoModal';
+import VisorCaptura from '../../components/admin/VisorCaptura';
 import { anularVenta, marcarVentaEntregada, medir } from '../../services/ventasService';
 import { generarNotaVenta } from '../../utils/pdfVentas';
 import { formatPrice } from '../../utils/images';
@@ -22,6 +23,7 @@ const AdminVentas = () => {
   const [anulando, setAnulando] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [abierta, setAbierta] = useState(null);
+  const [capturaDe, setCapturaDe] = useState(null);
   const [filtro, setFiltro] = useState({ desde: '', hasta: hoyISO(), estado: 'todas', texto: '' });
 
   // Cada colección se lee por separado: si «ventas» falla, igual se pueden registrar ventas con los muebles
@@ -214,7 +216,9 @@ const AdminVentas = () => {
                       <div><b className="text-espresso">Detalle:</b> {(v.items || []).map((it) => `${it.codigo || ''} ${it.nombre} × ${it.cantidad} (${formatPrice(it.precioUnit)})`).join(' · ')}</div>
                       <div><b className="text-espresso">Boleta:</b> {v.pago?.numeroBoleta} · <b className="text-espresso">Recibido:</b> {formatPrice(v.pago?.montoRecibido || 0)} · <b className="text-espresso">Vuelto:</b> {formatPrice(v.pago?.vuelto || 0)}</div>
                       <div><b className="text-espresso">Registrada por:</b> {v.registradoPor?.email} · <b className="text-espresso">Creada:</b> {formatoFechaHora(v.creadoEn)} · <b className="text-espresso">Duración del formulario:</b> {v.medicion?.duracionSeg ?? '—'} s · <b className="text-espresso">Versión:</b> {v.medicion?.version}</div>
-                      {v.pago?.capturaUrl && <div><a href={v.pago.capturaUrl} target="_blank" rel="noreferrer" className="font-bold underline">Ver captura de Yape</a></div>}
+                      {(v.pago?.tieneCaptura || v.pago?.capturaUrl) && (
+                        <div><button type="button" onClick={() => setCapturaDe(v)} className="font-bold underline text-espresso"><i className="fas fa-image mr-1.5"></i>Ver captura de Yape</button></div>
+                      )}
                       {(v.historial || []).length > 0 && (
                         <div><b className="text-espresso">Historial:</b> {(v.historial || []).map((h) => `${formatoFechaHora(h.fecha)} ${h.accion}${h.motivo ? ` (${h.motivo})` : ''} – ${h.usuario || ''}`).join(' · ')}</div>
                       )}
@@ -227,6 +231,10 @@ const AdminVentas = () => {
         )}
         <p className="text-right text-sm text-cafe">{visibles.length} ventas · Total registrado: <b className="text-espresso">{formatPrice(totalVisible)}</b></p>
       </section>
+
+      {capturaDe && (
+        <VisorCaptura ventaId={capturaDe.id} codigo={capturaDe.codigo} urlAntigua={capturaDe.pago?.capturaUrl || null} onClose={() => setCapturaDe(null)} />
+      )}
 
       {anulando && (
         <MotivoModal

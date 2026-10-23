@@ -115,6 +115,15 @@ service cloud.firestore {
     match /movimientos/{id} { allow read, create: if esPersonal(); allow update, delete: if false; }
     match /metricas/{id}    { allow read, create: if esPersonal(); allow update, delete: if false; }
 
+    // Capturas de Yape comprimidas (base64), una por venta: capturasYape/{ventaId}
+    match /capturasYape/{ventaId} {
+      allow read: if esPersonal();
+      allow create, update: if esPersonal()
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.size() < 1000000;
+      allow delete: if isAdmin();
+    }
+
     // --- PEDIDOS EN LÍNEA (ORDERS) ---
     match /orders/{orderId} {
       allow create: if isLoggedIn();
