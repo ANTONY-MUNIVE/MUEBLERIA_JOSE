@@ -40,3 +40,5 @@ Thumbs.db
 
 # Cache de Firebase (¡IMPORTANTE NO SUBIRLO!)
 .firebase/
+# Configuración local de Vercel (proxy-ia)
+.vercel
