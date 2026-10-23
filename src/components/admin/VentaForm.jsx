@@ -292,7 +292,11 @@ const VentaForm = ({ muebles, ventaACorregir = null, onGuardado, onCancel }) => 
             placeholder="Ej. ROP-001 o ropero" className={`${claseInput()} pl-11`} autoComplete="off" />
         </div>
         <ul className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1" aria-label="Resultados">
-          {resultados.length === 0 && <li className="text-sm text-cafe px-1 py-4">No hay muebles que coincidan con «{busqueda}».</li>}
+          {muebles.length === 0 ? (
+            <li className="text-sm text-red-800 bg-red-50 rounded-2xl px-4 py-3">
+              No se cargó ningún mueble. Revise el aviso rojo de la lista de ventas: suele ser un permiso faltante en las reglas de Firestore.
+            </li>
+          ) : resultados.length === 0 && <li className="text-sm text-cafe px-1 py-4">No hay muebles que coincidan con «{busqueda}».</li>}
           {resultados.map((m) => {
             const stock = stockDisponible[m.id] || 0;
             const enVenta = Number(datos.items.find((it) => it.muebleId === m.id)?.cantidad || 0);

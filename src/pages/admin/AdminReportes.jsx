@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { leerVarias } from '../../utils/firestoreSeguro';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
@@ -20,29 +21,26 @@ const AdminReportes = () => {
   const [cargando, setCargando] = useState(true);
   const [medicion, setMedicion] = useState(modoMedicionActivo());
 
-  const cargar = useCallback(async (desde, hasta) => {
-    try {
-      const desdeAmplio = `${sumarDias(desde, -1)}T00:00:00`;
-      const hastaAmplio = `${sumarDias(hasta, 1)}T23:59:59`;
-      const [v, m, mov, met] = await Promise.all([
-        getDocs(query(collection(db, 'ventas'), where('fecha', '>=', desde), where('fecha', '<=', hasta))),
-        getDocs(collection(db, 'muebles')),
-        getDocs(query(collection(db, 'movimientos'), where('fechaCliente', '>=', desdeAmplio), where('fechaCliente', '<=', hastaAmplio))),
-        getDocs(query(collection(db, 'metricas'), where('fechaCliente', '>=', desdeAmplio), where('fechaCliente', '<=', hastaAmplio))).catch(() => ({ docs: [] })),
-      ]);
-      const enRango = (x) => { const d = diaLocal(x.fechaCliente); return d >= desde && d <= hasta; };
+  // Cada colección se lee por separado para que un permiso faltante no deje todo el reporte vacío
+  const cargar = useCallback((desde, hasta) => {
+    const desdeAmplio = `${sumarDias(desde, -1)}T00:00:00`;
+    const hastaAmplio = `${sumarDias(hasta, 1)}T23:59:59`;
+    return leerVarias({
+      ventas: getDocs(query(collection(db, 'ventas'), where('fecha', '>=', desde), where('fecha', '<=', hasta))),
+      muebles: getDocs(collection(db, 'muebles')),
+      movimientos: getDocs(query(collection(db, 'movimientos'), where('fechaCliente', '>=', desdeAmplio), where('fechaCliente', '<=', hastaAmplio))),
+      metricas: getDocs(query(collection(db, 'metricas'), where('fechaCliente', '>=', desdeAmplio), where('fechaCliente', '<=', hastaAmplio))),
+    }).then(({ datos: d, errores }) => {
+      const enRango = (x) => { const dia = diaLocal(x.fechaCliente); return dia >= desde && dia <= hasta; };
       setDatos({
-        ventas: v.docs.map((d) => ({ id: d.id, ...d.data() })),
-        muebles: m.docs.map((d) => ({ id: d.id, ...d.data() })),
-        movimientos: mov.docs.map((d) => ({ id: d.id, ...d.data() })).filter(enRango),
-        metricas: met.docs.map((d) => ({ id: d.id, ...d.data() })).filter(enRango),
+        ventas: d.ventas,
+        muebles: d.muebles,
+        movimientos: d.movimientos.filter(enRango),
+        metricas: d.metricas.filter(enRango),
+        error: errores.length ? errores.join(' ') : undefined,
       });
-    } catch (err) {
-      console.error(err);
-      setDatos({ ventas: [], muebles: [], movimientos: [], metricas: [], error: 'No se pudieron cargar los datos.' });
-    } finally {
       setCargando(false);
-    }
+    });
   }, []);
 
   useEffect(() => { cargar(rango.desde, rango.hasta); }, [cargar, rango]);

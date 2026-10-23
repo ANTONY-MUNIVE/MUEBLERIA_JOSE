@@ -8,6 +8,7 @@ import { generarNotaVenta } from '../../utils/pdfVentas';
 import { formatPrice } from '../../utils/images';
 import { formatoFecha, formatoFechaHora, hoyISO } from '../../utils/fechas';
 import { STOCK_MINIMO_DEFAULT } from '../../config/app';
+import { leerVarias } from '../../utils/firestoreSeguro';
 import { Link, useOutletContext } from 'react-router-dom';
 
 /** Registro y gestión de ventas en tienda (RF13–RF19). */
@@ -23,21 +24,16 @@ const AdminVentas = () => {
   const [abierta, setAbierta] = useState(null);
   const [filtro, setFiltro] = useState({ desde: '', hasta: hoyISO(), estado: 'todas', texto: '' });
 
-  const cargar = useCallback(async () => {
-    try {
-      const [vSnap, mSnap] = await Promise.all([
-        getDocs(query(collection(db, 'ventas'), orderBy('creadoEn', 'desc'), limit(500))),
-        getDocs(collection(db, 'muebles')),
-      ]);
-      setVentas(vSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setMuebles(mSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error(err);
-      setAviso({ tipo: 'error', texto: 'No se pudieron cargar las ventas. Revise la conexión o los permisos de Firestore.' });
-    } finally {
-      setCargando(false);
-    }
-  }, []);
+  // Cada colección se lee por separado: si «ventas» falla, igual se pueden registrar ventas con los muebles
+  const cargar = useCallback(() => leerVarias({
+    ventas: getDocs(query(collection(db, 'ventas'), orderBy('creadoEn', 'desc'), limit(500))),
+    muebles: getDocs(collection(db, 'muebles')),
+  }).then(({ datos, errores }) => {
+    setVentas(datos.ventas);
+    setMuebles(datos.muebles);
+    if (errores.length) setAviso({ tipo: 'error', texto: errores.join(' ') });
+    setCargando(false);
+  }), []);
 
   useEffect(() => { cargar(); }, [cargar]);
 
