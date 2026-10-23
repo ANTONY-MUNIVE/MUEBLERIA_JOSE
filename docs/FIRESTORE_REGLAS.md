@@ -1,65 +1,68 @@
-# Reglas de Firestore y Storage para la versión 2.x
+# Reglas de Firestore y Storage
 
-La versión 2 usa colecciones nuevas. Si las reglas no las permiten, Firestore responde
-`permission-denied` y la app lo muestra en un aviso rojo, por ejemplo:
-«Firestore no da permiso para leer «ventas»».
+Las reglas ya están en el repositorio:
 
-Las reglas **no están en este repositorio**: se editan en la consola de Firebase.
+- `firestore.rules`: todas las colecciones de la app (registrado en `firebase.json`).
+- `storage.rules`: carpeta `yape/` de las capturas de pago. Se publica a mano desde la consola.
 
-## Firestore
+## Cómo funcionan los permisos
 
-Firebase Console → Firestore Database → **Reglas**.
-**No borre sus reglas actuales.** Agregue la función y los bloques `match` de abajo dentro de su
-`match /databases/{database}/documents { ... }`. Después pulse **Publicar**.
+Las reglas usan **los mismos módulos que se marcan en Roles y permisos**. Si un rol tiene marcado
+«Ventas», Firestore le deja registrar ventas; si no, lo rechaza aunque alguien abra la URL a mano.
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
+| Colección | Leer | Escribir |
+|---|---|---|
+| `muebles`, `categories`, `content`, `publications` | Todos (catálogo público) | `productos` (muebles: también `inventario` y `ventas`, que cambian el stock); `web` para contenido |
+| `ventas` | `ventas`, `reportes` | `ventas` (no se borran: se anulan) |
+| `contadores` | `ventas` | `ventas` |
+| `movimientos` (kárdex) | `inventario`, `reportes`, `ventas`, `productos` | Solo crear: `ventas`, `inventario`, `productos`. Nadie edita ni borra |
+| `metricas` | `reportes` | Solo crear, cualquier miembro del personal. Nadie edita ni borra |
+| `pedidosPersonalizados` | `pedidos_personalizados` | `pedidos_personalizados` (borrar: admin) |
+| `orders` | El dueño del pedido, `pedidos`, `dashboard` | Crear: el cliente a su nombre. Actualizar: `pedidos` |
+| `users` | Uno mismo, `roles` | Uno mismo **sin tocar su rol**; `roles` asigna roles; solo admin da «admin» |
+| `roles` | Cualquiera con sesión | `roles` |
+| `messages` | `clientes` | Crear: público (formulario de contacto) |
 
-    // Personal = usuario con sesión cuyo rol en /users no es «cliente»
-    function esPersonal() {
-      return request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'cliente';
-    }
+`admin` y `superadmin` pueden todo. Los roles antiguos `almacenero` y `carpintero` conservan lo que
+ya podían hacer.
 
-    // ---- Colecciones nuevas de la versión 2 ----
-    match /ventas/{id}                { allow read, write: if esPersonal(); }
-    match /contadores/{id}            { allow read, write: if esPersonal(); }
-    match /pedidosPersonalizados/{id} { allow read, write: if esPersonal(); }
+### Qué corrige respecto de las reglas anteriores
 
-    // El kárdex y las métricas solo se agregan; no se editan ni se borran
-    match /movimientos/{id} { allow read, create: if esPersonal(); allow update, delete: if false; }
-    match /metricas/{id}    { allow read, create: if esPersonal(); allow update, delete: if false; }
+1. **Nadie puede subirse de rol.** Antes un cliente podía editar su propio documento y ponerse
+   `role: "admin"`. Ahora el usuario no puede cambiar su campo `role`, y al registrarse solo puede
+   crearse como cliente.
+2. **Los permisos por rol ahora funcionan.** Las reglas buscan `roles/{nombre}`, pero la app creaba
+   los roles con un ID automático, así que esa búsqueda nunca encontraba nada. Ahora la página de
+   Roles guarda cada rol con su nombre como ID, y al abrirla copia los roles antiguos al formato nuevo.
+3. Había **dos bloques para `muebles`** con condiciones distintas. Quedó uno solo.
+4. **Kárdex, métricas y ventas no se pueden borrar.** Así los datos de la tesis no se pierden ni
+   se alteran.
+5. **El correlativo de pedidos solo avanza de uno en uno**, y cada pedido queda a nombre de quien lo crea.
 
-    // Muebles: el catálogo es público; solo el personal cambia datos y stock
-    // (si ya tiene una regla para «muebles», revise que el personal pueda escribir)
-    match /muebles/{id} { allow read: if true; allow write: if esPersonal(); }
+## Cómo publicarlas
 
-    // ... aquí siguen sus reglas actuales (users, roles, categories, content, publications, orders, messages) ...
-  }
-}
-```
-
-## Storage (captura de Yape)
-
-Firebase Console → Storage → **Reglas**. Agregue:
+**Opción A, con la terminal** (desde la carpeta del proyecto):
 
 ```
-match /yape/{archivo} {
-  allow read: if request.auth != null;
-  allow write: if request.auth != null
-    && request.resource.size < 5 * 1024 * 1024
-    && request.resource.contentType.matches('image/.*');
-}
+firebase deploy --only firestore:rules
 ```
 
-Si Storage no está habilitado, la venta se guarda igual: la app pregunta si se guarda sin la captura.
+**Opción B, con la consola:** Firestore Database → Reglas → reemplace todo por el contenido de
+`firestore.rules` → **Publicar**. La consola marca en rojo cualquier error antes de publicar.
 
-## Cómo comprobarlo
+Storage: consola → Storage → Reglas → pegue `storage.rules` → **Publicar**.
 
-1. Inicie sesión con una cuenta de rol `admin`.
-2. Abra **Ventas**. Si no aparece ningún aviso rojo, las lecturas funcionan.
-3. Registre una venta de prueba y revise en **Inventario → Kárdex** que se registró el movimiento.
-4. Si algo falla, abra la consola del navegador (F12). El error dice qué colección y qué permiso faltan.
+## Después de publicar (en este orden)
+
+1. Despliegue la versión nueva de la app, para que la página de Roles guarde los roles por nombre.
+2. Entre con una cuenta **admin** y abra **Roles y permisos** una vez. Los roles antiguos se migran solos.
+3. Revise que cada rol tenga marcados sus módulos (por ejemplo, el vendedor con «Ventas» y «Disponibilidad»).
+4. Pruebe con una cuenta de cada rol: el menú y Firestore deben dejar hacer lo mismo.
+
+Si sale «Firestore no da permiso para leer...», a ese rol le falta marcar el módulo.
+
+## Probar sin escribir datos reales
+
+En la consola: Firestore → Reglas → **Área de prueba de reglas** (Rules Playground). Elija una
+operación (get, create...), una ruta (por ejemplo `/ventas/prueba`) y «Autenticado» con el UID de un
+usuario. Le dice si se permite y qué línea decide, sin tocar los datos.

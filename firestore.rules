@@ -1,0 +1,191 @@
+rules_version = '2';
+
+// Reglas de Firestore — Mueblería Jose (v2.1)
+// Los permisos siguen los mismos módulos que se marcan en «Roles y permisos»:
+//   ventas, disponibilidad, inventario, pedidos_personalizados, reportes,
+//   dashboard, pedidos, productos, clientes, web, roles
+// «admin» y «superadmin» pueden todo. Cada rol se lee de roles/{nombre del rol}.
+// Publicar: firebase deploy --only firestore:rules  (o copiar en la consola → Firestore → Reglas)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===================== Funciones =====================
+
+    function logueado() {
+      return request.auth != null;
+    }
+
+    function rutaUsuario() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function tienePerfil() {
+      return logueado() && exists(rutaUsuario());
+    }
+
+    // Rol guardado en users/{uid}.role; si no tiene, se trata como cliente
+    function rol() {
+      return get(rutaUsuario()).data.get('role', 'cliente');
+    }
+
+    function esAdmin() {
+      return tienePerfil() && rol() in ['admin', 'superadmin'];
+    }
+
+    function esPersonal() {
+      return tienePerfil() && rol() != 'cliente';
+    }
+
+    function rutaRol() {
+      return /databases/$(database)/documents/roles/$(rol());
+    }
+
+    // ¿El rol del usuario tiene alguno de estos módulos marcados?
+    function rolPermite(modulos) {
+      return esPersonal()
+        && exists(rutaRol())
+        && get(rutaRol()).data.get('permissions', []).hasAny(modulos);
+    }
+
+    function puede(modulos) {
+      return esAdmin() || rolPermite(modulos.concat(['admin', 'super_access']));
+    }
+
+    // Compatibilidad con los roles que ya existían por nombre
+    function esRol(nombres) {
+      return tienePerfil() && rol() in nombres;
+    }
+
+    // ===================== Usuarios y roles =====================
+
+    match /users/{userId} {
+      // Al registrarse, cada uno crea solo su propio perfil y siempre como cliente
+      allow create: if logueado()
+        && request.auth.uid == userId
+        && request.resource.data.get('role', 'cliente') == 'cliente';
+
+      allow read: if logueado() && (request.auth.uid == userId || puede(['roles']));
+
+      // El usuario edita sus datos, pero NO su rol; el rol lo asigna quien gestiona roles.
+      // Solo un admin puede dar el rol «admin» o «superadmin».
+      allow update: if logueado() && (
+        (request.auth.uid == userId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid']))
+        || (puede(['roles'])
+          && (!(request.resource.data.get('role', '') in ['admin', 'superadmin']) || esAdmin()))
+      );
+
+      allow delete: if esAdmin();
+    }
+
+    match /roles/{roleId} {
+      allow read: if logueado();
+      allow write: if puede(['roles']);
+    }
+
+    // ===================== Contenido público de la web =====================
+
+    match /content/{document=**} {
+      allow read: if true;
+      allow write: if puede(['web']);
+    }
+    match /publications/{document=**} {
+      allow read: if true;
+      allow write: if puede(['web']);
+    }
+    match /info-empresa/{document=**} {
+      allow read: if true;
+      allow write: if puede(['web']);
+    }
+
+    // ===================== Catálogo =====================
+
+    match /categories/{document=**} {
+      allow read: if true;
+      allow write: if puede(['productos']) || esRol(['almacenero']);
+    }
+
+    // Las ventas y los movimientos de inventario también cambian el stock
+    match /muebles/{muebleId} {
+      allow read: if true;
+      allow create, update: if puede(['productos', 'inventario', 'ventas']) || esRol(['almacenero']);
+      allow delete: if puede(['productos']) || esRol(['almacenero']);
+    }
+    match /products/{document=**} {
+      allow read: if true;
+      allow write: if puede(['productos']) || esRol(['almacenero']);
+    }
+
+    // ===================== Tienda (versión 2) =====================
+
+    match /ventas/{ventaId} {
+      allow read: if puede(['ventas', 'reportes']);
+      allow create, update: if puede(['ventas']);
+      allow delete: if false; // las ventas se anulan, no se borran
+    }
+
+    match /contadores/{contadorId} {
+      allow read, write: if puede(['ventas']);
+    }
+
+    // Kárdex: solo se agregan movimientos; nunca se editan ni se borran
+    match /movimientos/{movId} {
+      allow read: if puede(['inventario', 'reportes', 'ventas', 'productos']);
+      allow create: if puede(['ventas', 'inventario', 'productos']);
+      allow update, delete: if false;
+    }
+
+    // Métricas de la tesis: cualquier miembro del personal las registra; nadie las altera
+    match /metricas/{metricaId} {
+      allow create: if esPersonal();
+      allow read: if puede(['reportes']);
+      allow update, delete: if false;
+    }
+
+    match /pedidosPersonalizados/{pedidoId} {
+      allow read, create, update: if puede(['pedidos_personalizados']);
+      allow delete: if esAdmin();
+    }
+
+    // ===================== Pedidos en línea =====================
+
+    match /orders/{orderId} {
+      // Cada cliente crea pedidos a su nombre
+      allow create: if logueado() && request.resource.data.userId == request.auth.uid;
+
+      allow read: if logueado() && (
+        resource.data.userId == request.auth.uid
+        || puede(['pedidos', 'dashboard'])
+        || esRol(['carpintero', 'almacenero'])
+      );
+
+      allow update: if puede(['pedidos']) || esRol(['carpintero', 'almacenero']);
+      allow delete: if esAdmin();
+    }
+
+    // Correlativo de los pedidos en línea (PED-000001)
+    match /counters/{counterId} {
+      allow read: if logueado();
+      allow create: if logueado()
+        && counterId == 'orders_counter'
+        && request.resource.data.keys().hasOnly(['count'])
+        && request.resource.data.count == 1;
+      // Solo se puede avanzar de uno en uno (nadie puede retroceder el correlativo)
+      allow update: if logueado()
+        && counterId == 'orders_counter'
+        && request.resource.data.keys().hasOnly(['count'])
+        && request.resource.data.count == resource.data.count + 1;
+      allow delete: if esAdmin();
+    }
+
+    // ===================== Mensajes de contacto =====================
+
+    match /messages/{mensajeId} {
+      allow create: if true;
+      allow read, update, delete: if puede(['clientes']) || rolPermite(['soporte', 'atencion_cliente']);
+    }
+
+    // Todo lo demás queda cerrado por defecto.
+  }
+}

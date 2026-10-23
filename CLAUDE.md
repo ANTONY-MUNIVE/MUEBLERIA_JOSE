@@ -48,8 +48,8 @@ Responde en español; todo el texto visible de la app va en español de Perú.
 
 ## Pendientes conocidos
 
-- Reglas de Firestore y Storage para las colecciones nuevas: `docs/FIRESTORE_REGLAS.md`.
+- Reglas en `firestore.rules` y `storage.rules` (explicación en `docs/FIRESTORE_REGLAS.md`). Los permisos usan los IDs de módulo de RolesPage: si agrega un módulo, agréguelo también en las reglas. Los roles se guardan con el nombre como ID (`roles/{nombre}`).
 - Los muebles antiguos no tienen código: Inventario → «Generar códigos faltantes».
 - La importación desde Excel no revisa códigos duplicados.
-- Hay 8 errores de ESLint anteriores a la v2 (AuthContext, CartContext, AdminCategories,
-  AdminPublications, Dashboard, RolesPage, Chatbot).
+- Hay 7 errores de ESLint anteriores a la v2 (AuthContext, CartContext, AdminCategories,
+  AdminPublications, Dashboard, Chatbot).
