@@ -1,3 +1,5 @@
+import { redesVisibles, tipoRed } from '../../config/redes';
+import { enlaceWhatsApp } from '../../hooks/useInfoEmpresa';
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -5,6 +7,9 @@ import { fixImageURL } from '../../utils/images';
 import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
 
 // Configuración visual del mapa
+// Clave de Google Maps en .env; si falta, se muestra un aviso en lugar del mapa
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+
 const containerStyle = {
   width: '100%',
   height: '400px',
@@ -24,7 +29,7 @@ const Contact = () => {
   // Cargamos el script de la API de Google
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: "AIzaSyBIZrptkE0IGakPhzMzMpq4PaW_gw_D1vk" 
+    googleMapsApiKey: MAPS_KEY || ''
   });
 
   // Lógica para cargar la info de Firebase
@@ -128,7 +133,7 @@ const Contact = () => {
       
       {/* CABECERA */}
       <div className="bg-gray-900 text-white py-20 px-6 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">{info?.titulo}</h1>
+        <h1 className="font-display text-4xl md:text-5xl font-semibold mb-4">{info?.titulo}</h1>
         <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Conoce más sobre nuestra pasión por los muebles y cómo encontrarnos.
         </p>
@@ -146,7 +151,7 @@ const Contact = () => {
                 />
             </div>
             <div className="md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">Nuestra Historia</h2>
+                <h2 className="font-display text-2xl font-semibold text-gray-800 mb-6 border-b pb-4">Nuestra Historia</h2>
                 <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-line">
                     {info?.historia || 'Agrega tu historia desde el panel de administrador.'}
                 </p>
@@ -176,7 +181,7 @@ const Contact = () => {
                 <h3 className="font-bold text-xl mb-2 text-gray-800">Llámanos</h3>
                 <p className="text-gray-500 mb-4">{info?.telefono}</p>
                 <a 
-                    href={`https://wa.me/${info?.telefono?.replace(/\D/g,'')}`} 
+                    href={enlaceWhatsApp(info?.telefono) || '#'} 
                     target="_blank" 
                     rel="noreferrer"
                     className="text-green-600 font-bold hover:underline"
@@ -198,6 +203,26 @@ const Contact = () => {
             </div>
         </div>
 
+        {/* REDES SOCIALES (Admin › Info de la empresa) */}
+        {redesVisibles(info || {}).length > 0 && (
+            <div className="bg-white rounded-3xl p-6 md:p-8 mb-16 flex flex-col md:flex-row md:items-center gap-5">
+                <div className="md:mr-auto">
+                    <h2 className="font-display text-2xl font-semibold">Síguenos</h2>
+                    <p className="text-cafe">Novedades, ofertas y muebles recién terminados.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {redesVisibles(info || {}).map((r) => {
+                        const t = tipoRed(r.red);
+                        return (
+                            <a key={r.id || r.red} href={r.url} target="_blank" rel="noreferrer" className="h-11 px-4 rounded-full bg-espresso text-hueso font-bold inline-flex items-center gap-2 hover:bg-terracota hover:text-espresso transition">
+                                <i className={t.icono}></i>{t.label}
+                            </a>
+                        );
+                    })}
+                </div>
+            </div>
+        )}
+
         {/* SECCIÓN 3: MAPA DE GOOGLE (AHORA CON RUTAS) */}
         <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100 mb-16 animate-fadeInUp">
             
@@ -206,7 +231,13 @@ const Contact = () => {
                 Haz clic en cualquier parte del mapa para calcular la ruta más rápida hacia nuestra tienda.
             </div>
 
-            {isLoaded ? (
+            {!MAPS_KEY ? (
+                <div role="alert" className="w-full h-[400px] bg-gray-100 rounded-xl flex flex-col items-center justify-center gap-2 p-6 text-center text-gray-600">
+                    <i className="fas fa-map-marked-alt text-3xl" aria-hidden="true"></i>
+                    <span>El mapa no está disponible por ahora. Puede ubicarnos con la dirección de arriba.</span>
+                    <span className="text-xs">(Falta la clave VITE_GOOGLE_MAPS_KEY en .env)</span>
+                </div>
+            ) : isLoaded ? (
                 <GoogleMap
                     mapContainerStyle={containerStyle}
                     center={storeLocation}
@@ -252,7 +283,7 @@ const Contact = () => {
 
         {/* SECCIÓN 4: FORMULARIO VISUAL */}
         <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 max-w-4xl mx-auto border border-gray-100">
-            <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">¿Tienes alguna duda?</h2>
+            <h2 className="font-display text-3xl font-semibold text-center text-gray-800 mb-2">¿Tienes alguna duda?</h2>
             <p className="text-center text-gray-500 mb-8">Envíanos un mensaje y te responderemos pronto.</p>
             
             <form className="space-y-6" onSubmit={handleSubmit}>

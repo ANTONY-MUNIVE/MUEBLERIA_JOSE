@@ -63,7 +63,7 @@ const Perfil = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 fade-in">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8 flex items-center gap-3">
+      <h1 className="font-display text-3xl font-semibold text-gray-800 mb-8 flex items-center gap-3">
         <i className="fas fa-user-circle text-orange-600"></i> Mi Cuenta
       </h1>
 
@@ -75,7 +75,7 @@ const Perfil = () => {
                 <div className="w-24 h-24 bg-gray-900 text-white rounded-full flex items-center justify-center text-4xl font-bold mx-auto mb-4">
                     {user?.email?.charAt(0).toUpperCase()}
                 </div>
-                <h2 className="font-bold text-gray-800 text-lg break-words">{user?.displayName || "Usuario"}</h2>
+                <h2 className="font-display font-semibold text-gray-800 text-lg break-words">{user?.displayName || "Usuario"}</h2>
                 <p className="text-gray-500 text-sm mb-4">{user?.email}</p>
                 <div className="inline-block bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full uppercase">
                     Cliente

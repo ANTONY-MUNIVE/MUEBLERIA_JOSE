@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import logoVertical from '../assets/logo-vertical.png';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { doc, setDoc } from 'firebase/firestore';
-
-// ================= RENIEC TOKEN =================
-const RENIEC_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImpmY2M5NTAxMjMwOUBnbWFpbC5jb20ifQ.UaK6eecpbt-mVnF9hI-BYSHtl6QQ5hCLU1MNItWe9P8"; 
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -18,10 +16,7 @@ const Register = () => {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [searchingDni, setSearchingDni] = useState(false);
-  const [isManual, setIsManual] = useState(false); 
-  const [dniMessage, setDniMessage] = useState(''); // <-- NUEVO ESTADO PARA MENSAJE AMIGABLE
-  
+
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -40,61 +35,15 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // El DNI solo admite dígitos (máximo 8)
   const handleDniChange = (e) => {
-    const value = e.target.value.replace(/\D/g, ''); 
-    setFormData({ ...formData, dni: value });
-    
-    // Si borra números, reiniciamos todo
-    if (value.length < 8) {
-      setFormData(prev => ({ ...prev, nombre: '' }));
-      setIsManual(false);
-      setDniMessage('');
-      setError('');
-    }
+    setFormData({ ...formData, dni: e.target.value.replace(/\D/g, '').slice(0, 8) });
   };
-
-  // ================= RENIEC POR DNI =================
-  useEffect(() => {
-    const fetchDNI = async () => {
-      const value = formData.dni;
-      if (value.length !== 8) return;
-
-      setSearchingDni(true);
-      setError('');
-      setDniMessage('');
-
-      try {
-        const res = await fetch(`https://dniruc.apisperu.com/api/v1/dni/${value}?token=${RENIEC_TOKEN}`);
-        const data = await res.json();
-
-        if (data?.nombres) {
-          const nombreCompleto = `${data.nombres} ${data.apellidoPaterno} ${data.apellidoMaterno}`.toUpperCase();
-          setFormData(prev => ({ ...prev, nombre: nombreCompleto }));
-          setIsManual(false); 
-        } else {
-          // Si no existe, habilitamos manual y mostramos mensaje amigable
-          setIsManual(true);
-          setFormData(prev => ({ ...prev, nombre: '' }));
-          setDniMessage("No encontramos este DNI. Por favor, escribe tu nombre manualmente.");
-        }
-      } catch (err) {
-        console.error("RENIEC error:", err);
-        // Si la API falla, habilitamos manual
-        setIsManual(true);
-        setFormData(prev => ({ ...prev, nombre: '' }));
-        setDniMessage("No pudimos validar el DNI automáticamente. Escribe tu nombre manualmente.");
-      } finally {
-        setSearchingDni(false);
-      }
-    };
-
-    fetchDNI();
-  }, [formData.dni]); 
 
   const validateForm = () => {
     const { dni, nombre, email, password, confirmPassword } = formData;
 
-    if (!dni || dni.length !== 8) {
+    if (!/^\d{8}$/.test(dni)) {
       setError('Por favor ingresa un DNI válido de 8 dígitos.');
       return false;
     }
@@ -160,8 +109,9 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 font-sans">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-gray-200">
-        <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">Crear Cuenta</h1>
+      <div className="bg-white p-8 rounded-3xl shadow-lg w-full max-w-md animate-aparecer border border-gray-200">
+        <Link to="/" className="block mx-auto mb-4 w-40"><img src={logoVertical} alt="Mueblería Jose" className="w-full h-auto" /></Link>
+        <h1 className="font-display text-2xl font-semibold text-center text-gray-800 mb-6">Crear Cuenta</h1>
         
         {/* Este es el error GLOBAL, ya no saltará por culpa del DNI */}
         {error && (
@@ -173,48 +123,33 @@ const Register = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           
           <div>
-            <label className="block text-gray-600 text-sm font-bold mb-1">DNI</label>
-            <div className="relative">
-                <input 
-                  type="text" 
-                  name="dni"
-                  maxLength="8"
-                  value={formData.dni}
-                  onChange={handleDniChange} 
-                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Escribe los 8 dígitos..."
-                />
-                {searchingDni && (
-                  <div className="absolute right-3 top-3 text-blue-500">
-                    <i className="fas fa-spinner fa-spin"></i>
-                  </div>
-                )}
-            </div>
+            <label htmlFor="dni" className="block text-gray-600 text-sm font-bold mb-1">DNI</label>
+            <input
+              id="dni"
+              type="text"
+              name="dni"
+              inputMode="numeric"
+              aria-required="true"
+              value={formData.dni}
+              onChange={handleDniChange}
+              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Escribe los 8 dígitos..."
+            />
           </div>
 
           <div>
-            <label className="block text-gray-600 text-sm font-bold mb-1">Nombre Completo</label>
-            <input 
-              type="text" 
+            <label htmlFor="nombre" className="block text-gray-600 text-sm font-bold mb-1">Nombre Completo</label>
+            <input
+              id="nombre"
+              type="text"
               name="nombre"
+              autoComplete="name"
+              aria-required="true"
               value={formData.nombre}
               onChange={handleChange}
-              readOnly={!isManual} 
-              className={`w-full border p-3 rounded-lg outline-none transition ${
-                !isManual && formData.dni.length === 8 
-                ? 'bg-blue-50 border-blue-200 font-bold text-gray-700' 
-                : !isManual 
-                ? 'bg-gray-50 border-gray-300 text-gray-500 cursor-not-allowed' 
-                : 'bg-white border-gray-300 focus:ring-2 focus:ring-blue-500' 
-              }`}
-              placeholder={isManual ? "Escribe tus nombres y apellidos" : "Autocompletado con tu DNI"}
+              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Escribe tus nombres y apellidos"
             />
-            {/* Mensaje amigable si el DNI no se encuentra */}
-            {dniMessage && (
-                <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
-                    <i className="fas fa-info-circle"></i> {dniMessage}
-                </p>
-            )}
           </div>
 
           <div>

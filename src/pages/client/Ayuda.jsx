@@ -13,7 +13,7 @@ const Ayuda = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">Centro de Ayuda</h1>
+      <h1 className="font-display text-3xl font-semibold text-gray-800 mb-8 text-center">Centro de Ayuda</h1>
 
       {/* Grid de opciones rápidas */}
       <div className="grid md:grid-cols-3 gap-6 mb-12">
@@ -37,7 +37,7 @@ const Ayuda = () => {
       {/* FAQ Accordion */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-12">
         <div className="p-6 border-b border-gray-100">
-            <h2 className="text-xl font-bold text-gray-800">Preguntas Frecuentes</h2>
+            <h2 className="font-display text-xl font-semibold text-gray-800">Preguntas Frecuentes</h2>
         </div>
         {faqs.map((faq, index) => (
             <div key={index} className="border-b border-gray-100 last:border-0">
@@ -59,7 +59,7 @@ const Ayuda = () => {
 
       {/* Formulario de Contacto Rápido */}
       <div className="bg-gray-900 text-white rounded-xl p-8 md:p-12">
-          <h2 className="text-2xl font-bold mb-4">¿Aún necesitas ayuda?</h2>
+          <h2 className="font-display text-2xl font-semibold mb-4">¿Aún necesitas ayuda?</h2>
           <p className="text-gray-400 mb-6">Envíanos un mensaje y te responderemos en breve.</p>
           <form className="space-y-4">
               <input type="email" placeholder="Tu correo" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500 text-white" />

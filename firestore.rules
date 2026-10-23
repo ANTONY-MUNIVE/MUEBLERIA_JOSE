@@ -1,0 +1,158 @@
+rules_version = '2';
+
+// Reglas de Firestore — Mueblería Jose
+// Versión compatible: las reglas originales del proyecto + el acceso del personal a la v2.
+// La única restricción nueva es que nadie puede cambiarse su propio rol.
+// Publicar: firebase deploy --only firestore:rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // 1. FUNCIONES DE AYUDA (HELPERS)
+    // =========================================================
+
+    // Verifica si el usuario está autenticado
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // Obtiene el NOMBRE del rol (string) desde la colección 'users'
+    function getUserRoleName() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // Personal = usuario con sesión cuyo rol en /users no es «cliente»
+    function esPersonal() {
+      return isLoggedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && getUserRoleName() != 'cliente';
+    }
+
+    // Verifica permisos consultando roles/{nombre del rol}.permissions
+    function hasPermission(validPermissions) {
+      return isLoggedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             exists(/databases/$(database)/documents/roles/$(getUserRoleName())) &&
+             get(/databases/$(database)/documents/roles/$(getUserRoleName())).data.permissions.hasAny(validPermissions);
+    }
+
+    // Admin (por nombre de rol directo o por permiso 'admin')
+    function isAdmin() {
+      return isLoggedIn() && (
+        getUserRoleName() == 'admin' ||
+        getUserRoleName() == 'superadmin' ||
+        hasPermission(['admin', 'super_access'])
+      );
+    }
+
+    function isAlmacenero() {
+      return isLoggedIn() && (getUserRoleName() == 'almacenero' || isAdmin());
+    }
+
+    function isCarpintero() {
+      return isLoggedIn() && (getUserRoleName() == 'carpintero' || isAdmin());
+    }
+
+    // =========================================================
+    // 2. REGLAS POR COLECCIÓN
+    // =========================================================
+
+    // --- USUARIOS ---
+    match /users/{userId} {
+      // Al registrarse, cada uno crea solo su propio perfil y como cliente
+      allow create: if isLoggedIn()
+        && request.auth.uid == userId
+        && request.resource.data.get('role', 'cliente') == 'cliente';
+
+      allow read: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+
+      // El usuario edita sus datos pero NO su rol; el admin sí puede cambiarlo
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        (request.auth.uid == userId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // --- GESTIÓN DE LA WEB (CMS) ---
+    match /content/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /publications/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /info-empresa/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- PRODUCTOS E INVENTARIO ---
+    // Las ventas y los movimientos de inventario de la v2 también cambian el stock
+    match /muebles/{document=**} {
+      allow read: if true;
+      allow write: if isAlmacenero() || esPersonal();
+    }
+    match /products/{document=**} {
+      allow read: if true;
+      allow write: if isAlmacenero();
+    }
+    match /categories/{document=**} {
+      allow read: if true;
+      allow write: if isAlmacenero();
+    }
+
+    // --- TIENDA (VERSIÓN 2) ---
+    match /ventas/{id}                { allow read, write: if esPersonal(); }
+    match /contadores/{id}            { allow read, write: if esPersonal(); }
+    match /pedidosPersonalizados/{id} { allow read, write: if esPersonal(); }
+
+    // El kárdex y las métricas solo se agregan; no se editan ni se borran
+    match /movimientos/{id} { allow read, create: if esPersonal(); allow update, delete: if false; }
+    match /metricas/{id}    { allow read, create: if esPersonal(); allow update, delete: if false; }
+
+    // Capturas de Yape comprimidas (base64), una por venta: capturasYape/{ventaId}
+    match /capturasYape/{ventaId} {
+      allow read: if esPersonal();
+      allow create, update: if esPersonal()
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.size() < 1000000;
+      allow delete: if isAdmin();
+    }
+
+    // --- PEDIDOS EN LÍNEA (ORDERS) ---
+    match /orders/{orderId} {
+      allow create: if isLoggedIn();
+      allow read: if isLoggedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin() ||
+        isCarpintero() ||
+        isAlmacenero()
+      );
+      allow update: if isAdmin() || isCarpintero() || isAlmacenero();
+      allow delete: if isAdmin();
+    }
+
+    // --- CONFIGURACIÓN DE ROLES ---
+    match /roles/{roleId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    // --- MENSAJES Y SOPORTE ---
+    match /messages/{document=**} {
+      allow create: if true;
+      allow read, write: if isAdmin() || hasPermission(['soporte', 'atencion_cliente', 'carpintero', 'clientes']);
+    }
+
+    // --- CONTADORES DE PEDIDOS EN LÍNEA ---
+    match /counters/{document=**} {
+      allow read, update: if isLoggedIn();
+      allow create: if isAdmin();
+    }
+  }
+}

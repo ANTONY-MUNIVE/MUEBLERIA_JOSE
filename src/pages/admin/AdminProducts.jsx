@@ -1,15 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { fixImageURL, formatPrice } from '../../utils/images';
 import ProductForm from '../../components/admin/ProductForm';
 import * as XLSX from 'xlsx';
+import { crearMueble, actualizarMueble, codigoDisponible } from '../../services/ventasService';
+import { STOCK_MINIMO_DEFAULT } from '../../config/app';
 
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [errorForm, setErrorForm] = useState('');
   
   // Estados para los filtros
   const [deleteCategory, setDeleteCategory] = useState(""); // Para el borrado masivo
@@ -49,20 +52,27 @@ const AdminProducts = () => {
   };
 
   // 3. GUARDAR (CREAR O EDITAR)
+  // El código debe ser único; al crear, el stock inicial queda como movimiento de ingreso.
+  // Al editar no se modifica el stock (solo cambia con ventas, ingresos o ajustes).
   const handleSaveProduct = async (productData) => {
+    setErrorForm('');
     try {
+      const libre = await codigoDisponible(productData.codigo, editingProduct?.id || null);
+      if (!libre) {
+        setErrorForm(`El código ${productData.codigo} ya está asignado a otro mueble.`);
+        return;
+      }
       if (editingProduct) {
-        const productRef = doc(db, "muebles", editingProduct.id);
-        await updateDoc(productRef, productData);
+        await actualizarMueble(editingProduct.id, productData);
       } else {
-        await addDoc(collection(db, "muebles"), productData);
+        await crearMueble(productData);
       }
       setShowForm(false);
       setEditingProduct(null);
       fetchProducts();
     } catch (error) {
       console.error("Error guardando:", error);
-      alert("Hubo un error al guardar.");
+      setErrorForm("Hubo un error al guardar. Revise la conexión e intente de nuevo.");
     }
   };
 
@@ -108,8 +118,15 @@ const AdminProducts = () => {
         if (data.length === 0) return alert("El archivo Excel está vacío.");
 
         for (const item of data) {
-          const { id, ...productData } = item; 
-          await addDoc(collection(db, "muebles"), productData);
+          const { id: _id, ...productData } = item; 
+          await crearMueble({
+            ...productData,
+            codigo: String(productData.codigo || '').toUpperCase(),
+            stock: parseInt(productData.stock, 10) || 0,
+            stockMinimo: productData.stockMinimo ?? STOCK_MINIMO_DEFAULT,
+            unidad: productData.unidad || 'pieza',
+            motivoStock: 'Importación desde Excel',
+          });
         }
         alert(`Se importaron ${data.length} productos correctamente.`);
         fetchProducts();
@@ -244,9 +261,11 @@ const AdminProducts = () => {
         <ProductForm 
           productToEdit={editingProduct}
           onSave={handleSaveProduct}
+          errorExterno={errorForm}
           onCancel={() => {
             setShowForm(false);
             setEditingProduct(null);
+            setErrorForm('');
           }}
         />
       )}
@@ -263,9 +282,11 @@ const AdminProducts = () => {
               <thead className="bg-gray-50 text-gray-600 uppercase text-xs font-bold">
                 <tr>
                   <th className="p-4">Imagen</th>
+                  <th className="p-4">Código</th>
                   <th className="p-4">Nombre</th>
                   <th className="p-4">Categoría</th>
                   <th className="p-4">Precio</th>
+                  <th className="p-4">Stock</th>
                   <th className="p-4 text-center">Acciones</th>
                 </tr>
               </thead>
@@ -279,13 +300,15 @@ const AdminProducts = () => {
                         className="w-12 h-12 object-cover rounded bg-gray-100" 
                       />
                     </td>
-                    <td className="p-3 font-medium text-gray-800">{product.nombre}</td>
+                    <td className="p-3 text-sm font-bold text-gray-700">{product.codigo || <span className="text-xs text-red-500">Sin código</span>}</td>
+                    <td className="p-3 font-medium text-gray-800">{product.nombre}<div className="text-xs text-gray-500">{[product.color, product.medidas].filter(Boolean).join(' · ')}</div></td>
                     <td className="p-3 text-sm text-gray-500">
                       <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold">
                         {product.categoria || product.category || 'Sin categoría'}
                       </span>
                     </td>
                     <td className="p-3 font-bold text-gray-700">{formatPrice(product.precio)}</td>
+                    <td className="p-3 font-bold text-gray-700">{Number(product.stock) || 0}</td>
                     <td className="p-3 flex justify-center gap-2">
                       <button 
                         onClick={() => startEdit(product)}

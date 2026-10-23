@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { collection, getDocs } from 'firebase/firestore';
-import { useCart } from '../../context/CartContext';
-import { formatPrice } from '../../utils/images';
+import ProductCard from '../../components/client/ProductCard';
+import { hayStock, normalizarTexto } from '../../utils/similares';
 import ProductModal from '../../components/client/ProductModal';
 import { useSearchParams } from 'react-router-dom'; // <--- 1. IMPORTANTE: Agregado para leer la URL
 
 const Catalog = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { addToCart } = useCart();
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   // === ESTADOS DE FILTRO AVANZADO ===
@@ -19,6 +18,7 @@ const Catalog = () => {
   // Guardamos qué categoría padre está activa y cuál subcategoría
   const [activeCategory, setActiveCategory] = useState('Todos'); 
   const [activeSubcategory, setActiveSubcategory] = useState(null); 
+  const [soloDisponibles, setSoloDisponibles] = useState(false);
 
   // === HOOK PARA LEER URL (CONEXIÓN CON NAVBAR) ===
   const [searchParams] = useSearchParams();
@@ -62,25 +62,18 @@ const Catalog = () => {
   }, [searchParams]);
 
   // === LÓGICA DE FILTRADO ===
-  const filteredProducts = products.filter(product => {
-    // Validar que tenga STOCK POSITIVO
-    const hasStock = product.stock && product.stock > 0;
-
-    const prodCat = product.categoria ? product.categoria.trim() : 'Otros';
-    const prodSub = product.subcategoria ? product.subcategoria.trim() : '';
-    
-    // Búsqueda segura (maneja nulos)
-    const term = searchTerm.toLowerCase();
-    const matchSearch = product.nombre ? product.nombre.toLowerCase().includes(term) : false;
-    
-    let matchCat = true;
-    if (activeCategory !== 'Todos') matchCat = prodCat === activeCategory;
-
-    let matchSub = true;
-    if (activeCategory !== 'Todos' && activeSubcategory) matchSub = prodSub === activeSubcategory;
-
-    return matchSearch && matchCat && matchSub && hasStock; 
-  });
+  // Se muestran todos los muebles (los agotados al final, se pueden pedir a medida).
+  // Categorías y búsqueda se comparan sin mayúsculas ni tildes (hay datos guardados como «sala»).
+  const filteredProducts = products
+    .filter((product) => {
+      if (soloDisponibles && !hayStock(product)) return false;
+      const term = normalizarTexto(searchTerm);
+      const matchSearch = !term || [product.nombre, product.codigo, product.color].some((v) => normalizarTexto(v).includes(term));
+      const matchCat = activeCategory === 'Todos' || normalizarTexto(product.categoria || 'Otros') === normalizarTexto(activeCategory);
+      const matchSub = activeCategory === 'Todos' || !activeSubcategory || normalizarTexto(product.subcategoria) === normalizarTexto(activeSubcategory);
+      return matchSearch && matchCat && matchSub;
+    })
+    .sort((x, y) => Number(hayStock(y)) - Number(hayStock(x)));
 
   // Funciones navegación Modal
   const navigateModal = (direction) => {
@@ -92,138 +85,136 @@ const Catalog = () => {
     setSelectedProduct(filteredProducts[newIndex]);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Cargando catálogo...</div>;
+  const limpiarFiltros = () => { setSearchTerm(''); setActiveCategory('Todos'); setActiveSubcategory(null); setSoloDisponibles(false); };
+  const etiquetaFiltro = activeCategory === 'Todos' ? 'Todos los muebles' : [activeCategory, activeSubcategory].filter(Boolean).join(' · ');
+
+  if (loading) {
+    return (
+      <div className="flex flex-col lg:flex-row gap-6" aria-busy="true" aria-label="Cargando catálogo">
+        <div className="lg:w-72 h-80 rounded-3xl bg-arena animate-pulse"></div>
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-80 rounded-3xl bg-arena animate-pulse"></div>)}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-4">Nuestro Catálogo</h1>
-        <p className="text-gray-500">
-            {searchTerm ? `Resultados para: "${searchTerm}"` : 'Muebles diseñados para tu hogar.'}
+    <div className="relative">
+      <div className="mb-7">
+        <h1 className="font-display font-semibold text-4xl md:text-[44px]">Nuestro catálogo</h1>
+        <p className="text-cafe mt-1">
+          {searchTerm ? <>Resultados para «<strong className="text-espresso">{searchTerm}</strong>»</> : 'Muebles diseñados para tu hogar.'}
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        
-        {/* === SIDEBAR CATEGORÍAS === */}
-        <aside className="w-full lg:w-1/4 space-y-6">
-            
-          {/* Buscador Local */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <input 
-              type="text"
-              placeholder="Buscar..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition"
-            />
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Filtros */}
+        <aside aria-label="Filtros" className="w-full lg:w-72 shrink-0 bg-white rounded-3xl p-5 flex flex-col gap-4 lg:sticky lg:top-24">
+          <div>
+            <label htmlFor="buscar-catalogo" className="block text-[13px] font-extrabold mb-1.5">Buscar en el catálogo</label>
+            <div className="relative">
+              <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-cafe/70" aria-hidden="true"></i>
+              <input
+                id="buscar-catalogo"
+                type="search"
+                placeholder="Ej. ropero"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-11 pl-10 pr-3 rounded-2xl border border-gray-400 bg-white outline-none focus:border-terracota focus:ring-2 focus:ring-terracota/30 transition"
+              />
+            </div>
           </div>
 
-          {/* Árbol de Categorías */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-800 mb-4 text-lg">Filtrar por</h3>
-            
-            <ul className="space-y-1">
-              <li>
-                <button 
-                  onClick={() => { setActiveCategory('Todos'); setActiveSubcategory(null); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg font-medium transition
-                    ${activeCategory === 'Todos' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                >
-                  Ver Todo
-                </button>
-              </li>
-
-              {categoriesData.map((cat) => (
-                <li key={cat.id} className="mt-2">
-                    <button 
-                        onClick={() => {
-                            if (activeCategory === cat.nombre) {
-                                setActiveSubcategory(null);
-                            } else {
-                                setActiveCategory(cat.nombre);
-                                setActiveSubcategory(null);
-                            }
-                        }}
-                        className={`w-full flex justify-between items-center px-3 py-2 rounded-lg transition
-                            ${activeCategory === cat.nombre ? 'text-blue-600 font-bold bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
-                    >
-                        <span>{cat.nombre}</span>
-                        {cat.subcategorias.length > 0 && (
-                            <i className={`fas fa-chevron-down text-xs transition-transform ${activeCategory === cat.nombre ? 'rotate-180' : ''}`}></i>
-                        )}
-                    </button>
-
-                    {activeCategory === cat.nombre && cat.subcategorias.length > 0 && (
-                        <ul className="pl-6 mt-1 space-y-1 border-l-2 border-gray-100 ml-3">
-                            {cat.subcategorias.map((sub) => (
-                                <li key={sub}>
-                                    <button 
-                                        onClick={() => setActiveSubcategory(sub)}
-                                        className={`text-sm w-full text-left px-2 py-1 rounded transition
-                                            ${activeSubcategory === sub ? 'text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-800'}`}
-                                    >
-                                        {sub}
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </li>
-              ))}
-            </ul>
+          <div className="flex flex-col gap-1">
+            <span className="text-[13px] font-extrabold pb-1">Categorías</span>
+            <button
+              type="button"
+              onClick={() => { setActiveCategory('Todos'); setActiveSubcategory(null); }}
+              className={`text-left px-4 min-h-11 rounded-2xl font-bold transition ${activeCategory === 'Todos' ? 'bg-espresso text-hueso' : 'hover:bg-hueso'}`}
+            >
+              Ver todo
+            </button>
+            {categoriesData.map((cat) => {
+              const activa = activeCategory === cat.nombre;
+              return (
+                <div key={cat.id}>
+                  <button
+                    type="button"
+                    aria-expanded={cat.subcategorias.length > 0 ? activa : undefined}
+                    onClick={() => {
+                      if (activa) setActiveSubcategory(null);
+                      else { setActiveCategory(cat.nombre); setActiveSubcategory(null); }
+                    }}
+                    className={`w-full flex justify-between items-center text-left px-4 min-h-11 rounded-2xl font-bold transition ${activa ? 'bg-espresso text-hueso' : 'hover:bg-hueso'}`}
+                  >
+                    <span>{cat.nombre}</span>
+                    {cat.subcategorias.length > 0 && <i className={`fas fa-chevron-down text-xs transition-transform duration-300 ${activa ? 'rotate-180' : ''}`}></i>}
+                  </button>
+                  {activa && cat.subcategorias.length > 0 && (
+                    <ul className="ml-5 mt-1 mb-2 pl-3 border-l-2 border-linea flex flex-col gap-0.5 animate-fade-in-down">
+                      {cat.subcategorias.map((sub) => (
+                        <li key={sub}>
+                          <button
+                            type="button"
+                            onClick={() => setActiveSubcategory(sub)}
+                            className={`w-full text-left px-2.5 min-h-10 rounded-xl text-[15px] transition ${activeSubcategory === sub ? 'font-extrabold text-terracota-oscuro' : 'text-cafe hover:text-espresso'}`}
+                          >
+                            {sub}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
           </div>
+
+          <label className="flex items-center justify-between gap-3 px-1 pt-3 border-t border-linea cursor-pointer select-none">
+            <span className="font-bold text-[15px]">Solo disponibles en tienda</span>
+            <input type="checkbox" checked={soloDisponibles} onChange={(e) => setSoloDisponibles(e.target.checked)} className="peer sr-only" />
+            <span aria-hidden="true" className="relative w-12 h-7 rounded-full bg-linea peer-checked:bg-terracota transition-colors after:content-[''] after:absolute after:top-1 after:left-1 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5 peer-focus-visible:ring-4 peer-focus-visible:ring-terracota/40"></span>
+          </label>
         </aside>
 
-        {/* === GRILLA === */}
-        <main className="w-full lg:w-3/4">
-            {filteredProducts.length === 0 && (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                    <i className="fas fa-search text-4xl text-gray-300 mb-4"></i>
-                    <p className="text-gray-500">No encontramos productos con esos filtros.</p>
-                    <button onClick={() => {setSearchTerm(''); setActiveCategory('Todos');}} className="mt-4 text-blue-600 font-bold hover:underline">Limpiar filtros</button>
-                </div>
+        {/* Resultados */}
+        <section aria-label="Resultados" className="flex-1 min-w-0 flex flex-col gap-4 w-full">
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <p className="text-cafe"><strong className="text-espresso">{etiquetaFiltro}</strong> · {filteredProducts.length} {filteredProducts.length === 1 ? 'mueble' : 'muebles'}</p>
+            {(searchTerm || activeCategory !== 'Todos' || soloDisponibles) && (
+              <button type="button" onClick={limpiarFiltros} className="font-extrabold text-sm text-terracota-oscuro hover:text-espresso px-1 min-h-10">
+                <i className="fas fa-times mr-1.5"></i>Limpiar filtros
+              </button>
             )}
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => (
-                <div key={product.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col">
-                    <div className="relative h-64 overflow-hidden bg-gray-100">
-                        <img src={product.imagen} alt={product.nombre} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                             <button onClick={() => setSelectedProduct(product)} className="bg-white text-gray-900 px-6 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition">
-                                <i className="fas fa-eye mr-2"></i> Ver Detalle
-                             </button>
-                        </div>
-                    </div>
-                    <div className="p-5 flex-1 flex flex-col">
-                        <div className="flex gap-2 mb-1">
-                            <span className="text-xs text-gray-400 font-bold uppercase">{product.categoria}</span>
-                            {product.subcategoria && (
-                                <span className="text-xs text-blue-400 font-bold uppercase">• {product.subcategoria}</span>
-                            )}
-                        </div>
-                        <h2 className="text-lg font-bold text-gray-800 mb-2">{product.nombre}</h2>
-                        <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
-                            <span className="text-xl font-bold text-gray-900">{formatPrice(product.precio)}</span>
-                            <button onClick={() => addToCart(product)} className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-900 hover:text-white transition flex items-center justify-center shadow-sm">
-                                <i className="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                ))}
+          {filteredProducts.length === 0 ? (
+            <div className="text-center py-16 px-6 bg-white rounded-3xl border border-dashed border-linea animate-fade-in">
+              <i className="fas fa-couch text-4xl text-piedra mb-4"></i>
+              <p className="font-bold text-lg">No encontramos muebles con esos filtros.</p>
+              <p className="text-cafe mt-1">Prueba con otra palabra o revisa todas las categorías.</p>
+              <button type="button" onClick={limpiarFiltros} className="mt-5 bg-espresso text-hueso px-6 py-3 rounded-full font-extrabold hover:bg-espresso-2 transition">Ver todo el catálogo</button>
             </div>
-        </main>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              {filteredProducts.map((product, i) => (
+                <ProductCard key={product.id} product={product} onVerDetalle={setSelectedProduct} retraso={Math.min(i, 8) * 50} />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
       {selectedProduct && (
-        <ProductModal 
-            product={selectedProduct} 
-            onClose={() => setSelectedProduct(null)} 
-            onNext={() => navigateModal('next')} 
-            onPrev={() => navigateModal('prev')} 
-            hasNext={filteredProducts.length > 1} 
+        <ProductModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onNext={() => navigateModal('next')}
+          onPrev={() => navigateModal('prev')}
+          hasNext={filteredProducts.length > 1}
+          productos={products}
+          onElegir={setSelectedProduct}
         />
       )}
     </div>

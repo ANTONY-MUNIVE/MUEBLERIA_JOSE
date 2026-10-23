@@ -114,7 +114,7 @@ const Checkout = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Finalizar Compra</h1>
+      <h1 className="font-display text-2xl font-semibold mb-6">Finalizar Compra</h1>
 
       <div className="grid md:grid-cols-2 gap-8">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -181,7 +181,7 @@ const Checkout = () => {
         </form>
 
         <div className="bg-gray-50 p-6 rounded h-fit">
-            <h2 className="text-xl font-bold mb-4">Resumen</h2>
+            <h2 className="font-display text-xl font-semibold mb-4">Resumen</h2>
             {cart.map(item => (
                 <div key={item.id} className="flex justify-between py-2 border-b text-sm">
                     <span>{item.quantity} x {item.nombre}</span>

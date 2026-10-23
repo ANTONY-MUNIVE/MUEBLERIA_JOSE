@@ -2,19 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { 
   collection, 
-  addDoc, 
+  getDoc,
   getDocs, 
   deleteDoc, 
   doc, 
+  setDoc,
   updateDoc,
   query,
-  where
+  where,
+  writeBatch
 } from 'firebase/firestore';
 
-// 1. DEFINIMOS LOS MÓDULOS DISPONIBLES (IDs fijos)
-export const SYSTEM_MODULES = [
+// 1. DEFINIMOS LOS MÓDULOS DISPONIBLES (IDs fijos; las reglas de Firestore usan estos mismos IDs)
+const SYSTEM_MODULES = [
+  { id: 'ventas', label: 'Ventas en tienda' },
+  { id: 'disponibilidad', label: 'Consulta de disponibilidad' },
+  { id: 'inventario', label: 'Inventario (ingresos, ajustes y kárdex)' },
+  { id: 'pedidos_personalizados', label: 'Pedidos personalizados' },
+  { id: 'reportes', label: 'Reportes de ventas y stock' },
   { id: 'dashboard', label: 'Dashboard Principal' },
-  { id: 'pedidos', label: 'Gestión de Pedidos' },
+  { id: 'pedidos', label: 'Pedidos en línea' },
   { id: 'productos', label: 'Inventario (Productos/Categorías)' },
   { id: 'clientes', label: 'Mensajes y Clientes' },
   { id: 'web', label: 'Configuración Web (Portada/Info)' },
@@ -36,13 +43,45 @@ const RolesPage = () => {
   const [foundUser, setFoundUser] = useState(null);
   const [userRoleSelect, setUserRoleSelect] = useState("");
 
+  // Personal con acceso al panel (RF04)
+  const [personal, setPersonal] = useState([]);
+
+  const fetchPersonal = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, "users"), where("role", "!=", "cliente")));
+      setPersonal(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (error) {
+      console.error("Error cargando personal:", error);
+    }
+  };
+
   useEffect(() => {
     fetchRoles();
+    fetchPersonal();
   }, []);
 
+  // Las reglas de Firestore buscan el rol en roles/{nombre}. Los roles antiguos se crearon con un ID
+  // automático, así que al abrir esta página se copian una vez con el nombre como ID.
   const fetchRoles = async () => {
     const querySnapshot = await getDocs(collection(db, "roles"));
-    const rolesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    let rolesData = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    const antiguos = rolesData.filter(r => r.nombre && r.id !== r.nombre && !r.nombre.includes('/'));
+    if (antiguos.length) {
+      try {
+        const batch = writeBatch(db);
+        antiguos.forEach(r => {
+          const destino = rolesData.find(x => x.id === r.nombre);
+          const permisos = [...new Set([...(destino?.permissions || []), ...(r.permissions || [])])];
+          batch.set(doc(db, "roles", r.nombre), { nombre: r.nombre, permissions: permisos });
+          batch.delete(doc(db, "roles", r.id));
+        });
+        await batch.commit();
+        const snap = await getDocs(collection(db, "roles"));
+        rolesData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (error) {
+        console.error("No se pudieron migrar los roles antiguos:", error);
+      }
+    }
     setRoles(rolesData);
   };
 
@@ -58,22 +97,41 @@ const RolesPage = () => {
   // --- GUARDAR ROL (CREAR O EDITAR) ---
   const handleSaveRole = async (e) => {
     e.preventDefault();
-    if (!roleName.trim()) return;
+    const nombre = roleName.trim().toLowerCase(); // Guardamos en minúscula para consistencia
+    if (!nombre) return;
+    if (nombre.includes('/') || nombre === 'cliente') {
+      alert('El nombre del rol no puede contener «/» ni llamarse «cliente».');
+      return;
+    }
 
     setLoading(true);
     try {
-      const roleData = {
-        nombre: roleName.toLowerCase(), // Guardamos en minúscula para consistencia
-        permissions: selectedPermissions // Guardamos el array de IDs permitidos
-      };
+      const roleData = { nombre, permissions: selectedPermissions };
 
       if (editingId) {
-        // MODO EDICIÓN
-        await updateDoc(doc(db, "roles", editingId), roleData);
+        // MODO EDICIÓN: el ID del documento es el nombre del rol
+        if (editingId !== nombre) {
+          const viejo = roles.find(r => r.id === editingId)?.nombre;
+          const batch = writeBatch(db);
+          batch.set(doc(db, "roles", nombre), roleData);
+          batch.delete(doc(db, "roles", editingId));
+          // Los usuarios con el nombre anterior pasan al nombre nuevo
+          if (viejo) {
+            const usuarios = await getDocs(query(collection(db, "users"), where("role", "==", viejo)));
+            usuarios.docs.forEach(u => batch.update(u.ref, { role: nombre }));
+          }
+          await batch.commit();
+        } else {
+          await updateDoc(doc(db, "roles", editingId), roleData);
+        }
         alert("Rol actualizado correctamente");
       } else {
         // MODO CREACIÓN
-        await addDoc(collection(db, "roles"), roleData);
+        if ((await getDoc(doc(db, "roles", nombre))).exists()) {
+          alert(`Ya existe un rol llamado «${nombre}». Edítelo desde la lista.`);
+          return;
+        }
+        await setDoc(doc(db, "roles", nombre), roleData);
         alert("Rol creado correctamente");
       }
 
@@ -130,6 +188,7 @@ const RolesPage = () => {
     alert("Rol de usuario actualizado");
     setFoundUser(null);
     setEmailSearch("");
+    fetchPersonal();
   };
 
   return (
@@ -263,6 +322,21 @@ const RolesPage = () => {
                         <button onClick={handleUpdateUserRole} className="w-full bg-blue-600 text-white py-2 rounded font-bold">Confirmar Cambio</button>
                     </div>
                 )}
+
+                <p className="text-xs text-gray-500 mt-4">Para dar acceso a un trabajador: el trabajador crea su cuenta en «Registrarse» y luego aquí se busca su correo y se le asigna un rol.</p>
+                <h3 className="font-bold text-gray-700 mt-6 mb-2">Personal con acceso al panel</h3>
+                <table className="w-full text-sm">
+                    <tbody className="divide-y">
+                        {personal.map(u => (
+                            <tr key={u.id}>
+                                <td className="py-2 font-medium">{u.nombre || '—'}</td>
+                                <td className="py-2 text-gray-500">{u.email}</td>
+                                <td className="py-2 text-right"><span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold uppercase">{u.role}</span></td>
+                            </tr>
+                        ))}
+                        {personal.length === 0 && <tr><td className="py-2 text-gray-400">Aún no hay personal asignado.</td></tr>}
+                    </tbody>
+                </table>
             </div>
         </div>
 
