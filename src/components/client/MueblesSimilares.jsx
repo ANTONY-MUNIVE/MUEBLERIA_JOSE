@@ -41,8 +41,8 @@ const MueblesSimilares = ({ producto, muebles, onElegir, titulo = 'Muebles simil
     <section aria-label={titulo} className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className={`font-display font-semibold ${compacto ? 'text-lg' : 'text-2xl md:text-[28px]'}`}>{titulo}</h2>
-        {!compacto && lista.length > 3 && (
-          <div className="flex gap-2">
+        {lista.length > 3 && (
+          <div className="flex gap-2 shrink-0">
             <button type="button" onClick={() => desplazar(-1)} className="w-11 h-11 rounded-full border border-linea bg-white hover:bg-espresso hover:text-hueso transition" aria-label="Ver anteriores"><i className="fas fa-chevron-left"></i></button>
             <button type="button" onClick={() => desplazar(1)} className="w-11 h-11 rounded-full border border-linea bg-white hover:bg-espresso hover:text-hueso transition" aria-label="Ver siguientes"><i className="fas fa-chevron-right"></i></button>
           </div>
@@ -50,7 +50,7 @@ const MueblesSimilares = ({ producto, muebles, onElegir, titulo = 'Muebles simil
       </div>
       <ul
         ref={fila}
-        className={`flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 [scrollbar-width:thin] ${compacto ? '' : 'scroll-smooth'}`}
+        className={`flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 sin-barra ${compacto ? '' : 'scroll-smooth'}`}
       >
         {lista.map((m, i) => (
           <li

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { fixImageURL, formatPrice } from '../../utils/images';
@@ -9,6 +10,7 @@ import MueblesSimilares from './MueblesSimilares';
  * Vista rápida de un mueble desde el catálogo.
  * Flechas del teclado: anterior/siguiente; Escape: cerrar.
  * `productos` (todos los muebles) permite sugerir similares; `onElegir` cambia el mueble mostrado.
+ * Se dibuja en <body> con z-[60] para quedar sobre la cabecera (sticky z-50).
  */
 const ProductModal = ({ product, onClose, onNext, onPrev, hasNext, productos = [], onElegir }) => {
   const { addToCart } = useCart();
@@ -45,8 +47,8 @@ const ProductModal = ({ product, onClose, onNext, onPrev, hasNext, productos = [
     timer.current = setTimeout(() => setAgregado(false), 1600);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-label={product.nombre}>
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-label={product.nombre}>
       <button type="button" className="absolute inset-0 bg-espresso/70 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-label="Cerrar"></button>
 
       {hasNext && (
@@ -55,7 +57,7 @@ const ProductModal = ({ product, onClose, onNext, onPrev, hasNext, productos = [
         </button>
       )}
 
-      <div ref={panel} className="relative bg-white w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl animate-aparecer">
+      <div ref={panel} className="relative bg-white w-full max-w-4xl max-h-[92dvh] overflow-y-auto sin-barra overscroll-contain rounded-3xl shadow-2xl animate-aparecer">
         <button type="button" onClick={onClose} aria-label="Cerrar" className="absolute top-3 right-3 z-10 w-11 h-11 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-sm transition hover:rotate-90 duration-300">
           <i className="fas fa-times text-lg"></i>
         </button>
@@ -107,7 +109,8 @@ const ProductModal = ({ product, onClose, onNext, onPrev, hasNext, productos = [
           <i className="fas fa-chevron-right"></i>
         </button>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -4,7 +4,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { fixImageURL } from '../../utils/images';
 import { TIPOS_RED, tipoRed, normalizarEnlaceRed, redesVisibles } from '../../config/redes';
 
-const GEOCODING_KEY = 'AIzaSyBIZrptkE0IGakPhzMzMpq4PaW_gw_D1vk';
+// Clave de Google Maps (Geocoding) en .env; si falta, el botón «Obtener dirección» avisa
+const GEOCODING_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
 const INFO_VACIA = {
   titulo: 'Sobre Nosotros', historia: '', imagen: '',
@@ -195,6 +196,10 @@ const AdminAbout = () => {
   const handleGetAddress = async () => {
     if (!borrador.lat || !borrador.lng) {
       mostrarAviso('error', 'Ingrese primero la latitud y la longitud.');
+      return;
+    }
+    if (!GEOCODING_KEY) {
+      mostrarAviso('error', 'Falta la clave de Google Maps (VITE_GOOGLE_MAPS_KEY en .env). Escriba la dirección a mano.');
       return;
     }
     setFetchingAddress(true);

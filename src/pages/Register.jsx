@@ -6,7 +6,8 @@ import { db } from '../firebase/config';
 import { doc, setDoc } from 'firebase/firestore';
 
 // ================= RENIEC TOKEN =================
-const RENIEC_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImpmY2M5NTAxMjMwOUBnbWFpbC5jb20ifQ.UaK6eecpbt-mVnF9hI-BYSHtl6QQ5hCLU1MNItWe9P8"; 
+// Token de apisperu.com en .env; si falta, el nombre se escribe a mano
+const RENIEC_TOKEN = import.meta.env.VITE_RENIEC_TOKEN;
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -59,6 +60,12 @@ const Register = () => {
     const fetchDNI = async () => {
       const value = formData.dni;
       if (value.length !== 8) return;
+
+      if (!RENIEC_TOKEN) {
+        setIsManual(true);
+        setDniMessage("El autocompletado por DNI no está disponible (falta VITE_RENIEC_TOKEN en .env). Escribe tu nombre manualmente.");
+        return;
+      }
 
       setSearchingDni(true);
       setError('');

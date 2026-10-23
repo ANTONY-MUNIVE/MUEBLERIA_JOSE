@@ -60,7 +60,7 @@ export default function Chatbot() {
         return msg;
       });
 
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY;
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -89,7 +89,7 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
+    <div className="fixed bottom-6 right-6 z-[55] flex flex-col items-end">
       
       {/* VENTANA DEL CHAT */}
       {isOpen && (

@@ -85,7 +85,7 @@ const Dashboard = () => {
 
     try {
       // 1. Obtener la API Key de tu .env (¡Asegúrate de que sea la de OpenRouter!)
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY; 
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
       
       if (!apiKey) {
         throw new Error("No se encontró la API Key. Verifica tu archivo .env");

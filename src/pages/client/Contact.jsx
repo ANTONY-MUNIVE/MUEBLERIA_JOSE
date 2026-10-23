@@ -7,6 +7,9 @@ import { fixImageURL } from '../../utils/images';
 import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
 
 // Configuración visual del mapa
+// Clave de Google Maps en .env; si falta, se muestra un aviso en lugar del mapa
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+
 const containerStyle = {
   width: '100%',
   height: '400px',
@@ -26,7 +29,7 @@ const Contact = () => {
   // Cargamos el script de la API de Google
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: "AIzaSyBIZrptkE0IGakPhzMzMpq4PaW_gw_D1vk" 
+    googleMapsApiKey: MAPS_KEY || ''
   });
 
   // Lógica para cargar la info de Firebase
@@ -228,7 +231,13 @@ const Contact = () => {
                 Haz clic en cualquier parte del mapa para calcular la ruta más rápida hacia nuestra tienda.
             </div>
 
-            {isLoaded ? (
+            {!MAPS_KEY ? (
+                <div role="alert" className="w-full h-[400px] bg-gray-100 rounded-xl flex flex-col items-center justify-center gap-2 p-6 text-center text-gray-600">
+                    <i className="fas fa-map-marked-alt text-3xl" aria-hidden="true"></i>
+                    <span>El mapa no está disponible por ahora. Puede ubicarnos con la dirección de arriba.</span>
+                    <span className="text-xs">(Falta la clave VITE_GOOGLE_MAPS_KEY en .env)</span>
+                </div>
+            ) : isLoaded ? (
                 <GoogleMap
                     mapContainerStyle={containerStyle}
                     center={storeLocation}

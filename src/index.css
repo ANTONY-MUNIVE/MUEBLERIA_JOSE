@@ -112,3 +112,10 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Oculta la barra de desplazamiento sin quitar el desplazamiento (rueda, táctil y teclado) */
+@utility sin-barra {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; }
+}
