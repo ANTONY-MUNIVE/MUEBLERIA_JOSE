@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import logoOscuro from '../../assets/logo-horizontal-oscuro.png';
-import useInfoEmpresa, { enlaceWhatsApp } from '../../hooks/useInfoEmpresa';
+import useInfoEmpresa from '../../hooks/useInfoEmpresa';
+import { redesVisibles, tipoRed } from '../../config/redes';
 
 const Red = ({ href, label, icono }) => (
   <a
-    href={href || '#'}
-    target={href ? '_blank' : undefined}
+    href={href}
+    target="_blank"
     rel="noreferrer"
     aria-label={label}
     className="w-11 h-11 rounded-full border border-cafe flex items-center justify-center text-hueso hover:bg-terracota hover:text-espresso hover:border-terracota transition"
@@ -17,7 +18,7 @@ const Red = ({ href, label, icono }) => (
 
 const Footer = () => {
   const info = useInfoEmpresa();
-  const whatsapp = enlaceWhatsApp(info.telefono);
+  const redes = redesVisibles(info);
 
   return (
     <footer className="bg-espresso text-piedra mt-auto">
@@ -25,11 +26,14 @@ const Footer = () => {
         <div className="flex flex-col gap-3">
           <img src={logoOscuro} alt="Mueblería Jose" className="w-52 h-auto" />
           <p>Calidad y estilo para tu hogar.</p>
-          <div className="flex gap-2">
-            <Red href={info.facebook} label="Facebook" icono="fab fa-facebook-f" />
-            <Red href={info.instagram} label="Instagram" icono="fab fa-instagram" />
-            <Red href={whatsapp} label="WhatsApp" icono="fab fa-whatsapp" />
-          </div>
+          {redes.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {redes.map((r) => {
+                const t = tipoRed(r.red);
+                return <Red key={r.id || r.red} href={r.url} label={t.label} icono={t.icono} />;
+              })}
+            </div>
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           <h2 className="text-hueso font-bold mb-1">Visítanos</h2>

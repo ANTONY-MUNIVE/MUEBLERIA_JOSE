@@ -1,3 +1,5 @@
+import { redesVisibles, tipoRed } from '../../config/redes';
+import { enlaceWhatsApp } from '../../hooks/useInfoEmpresa';
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -176,7 +178,7 @@ const Contact = () => {
                 <h3 className="font-bold text-xl mb-2 text-gray-800">Llámanos</h3>
                 <p className="text-gray-500 mb-4">{info?.telefono}</p>
                 <a 
-                    href={`https://wa.me/${info?.telefono?.replace(/\D/g,'')}`} 
+                    href={enlaceWhatsApp(info?.telefono) || '#'} 
                     target="_blank" 
                     rel="noreferrer"
                     className="text-green-600 font-bold hover:underline"
@@ -197,6 +199,26 @@ const Contact = () => {
                 </a>
             </div>
         </div>
+
+        {/* REDES SOCIALES (Admin › Info de la empresa) */}
+        {redesVisibles(info || {}).length > 0 && (
+            <div className="bg-white rounded-3xl p-6 md:p-8 mb-16 flex flex-col md:flex-row md:items-center gap-5">
+                <div className="md:mr-auto">
+                    <h2 className="font-display text-2xl font-semibold">Síguenos</h2>
+                    <p className="text-cafe">Novedades, ofertas y muebles recién terminados.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {redesVisibles(info || {}).map((r) => {
+                        const t = tipoRed(r.red);
+                        return (
+                            <a key={r.id || r.red} href={r.url} target="_blank" rel="noreferrer" className="h-11 px-4 rounded-full bg-espresso text-hueso font-bold inline-flex items-center gap-2 hover:bg-terracota hover:text-espresso transition">
+                                <i className={t.icono}></i>{t.label}
+                            </a>
+                        );
+                    })}
+                </div>
+            </div>
+        )}
 
         {/* SECCIÓN 3: MAPA DE GOOGLE (AHORA CON RUTAS) */}
         <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100 mb-16 animate-fadeInUp">

@@ -19,6 +19,8 @@ Responde en español; todo el texto visible de la app va en español de Perú.
   un documento en `movimientos` (kárdex). **No actualice `muebles.stock` directamente.**
 - `src/utils/validaciones.js`: validaciones puras (`validarVenta`, `validarMueble`, ...).
 - `src/utils/firestoreSeguro.js`: `leerVarias()` lee varias colecciones sin que un error tumbe a las demás.
+- `src/config/redes.js`: redes sociales (CRUD en Admin › Info de la empresa, guardadas en `content/about.redes`).
+- `src/utils/similares.js` + `components/client/MueblesSimilares.jsx`: «muebles similares» en el detalle y el modal.
 - `src/config/app.js`: `APP_VERSION` (se guarda en cada venta y métrica; súbala al cambiar la interfaz).
 
 ## Diseño

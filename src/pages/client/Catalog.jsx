@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { collection, getDocs } from 'firebase/firestore';
 import ProductCard from '../../components/client/ProductCard';
+import { hayStock, normalizarTexto } from '../../utils/similares';
 import ProductModal from '../../components/client/ProductModal';
 import { useSearchParams } from 'react-router-dom'; // <--- 1. IMPORTANTE: Agregado para leer la URL
 
@@ -17,6 +18,7 @@ const Catalog = () => {
   // Guardamos qué categoría padre está activa y cuál subcategoría
   const [activeCategory, setActiveCategory] = useState('Todos'); 
   const [activeSubcategory, setActiveSubcategory] = useState(null); 
+  const [soloDisponibles, setSoloDisponibles] = useState(false);
 
   // === HOOK PARA LEER URL (CONEXIÓN CON NAVBAR) ===
   const [searchParams] = useSearchParams();
@@ -60,26 +62,18 @@ const Catalog = () => {
   }, [searchParams]);
 
   // === LÓGICA DE FILTRADO ===
-  const filteredProducts = products.filter(product => {
-    // Validar que tenga STOCK POSITIVO
-    const hasStock = product.stock && product.stock > 0;
-
-    const prodCat = product.categoria ? product.categoria.trim() : 'Otros';
-    const prodSub = product.subcategoria ? product.subcategoria.trim() : '';
-    
-    // Búsqueda segura (maneja nulos)
-    const term = searchTerm.toLowerCase();
-    const matchSearch = product.nombre ? product.nombre.toLowerCase().includes(term) : false;
-    
-    // Hay muebles antiguos guardados como «sala» o «dormitorio»: se compara sin mayúsculas
-    let matchCat = true;
-    if (activeCategory !== 'Todos') matchCat = prodCat.toLowerCase() === activeCategory.trim().toLowerCase();
-
-    let matchSub = true;
-    if (activeCategory !== 'Todos' && activeSubcategory) matchSub = prodSub.toLowerCase() === activeSubcategory.trim().toLowerCase();
-
-    return matchSearch && matchCat && matchSub && hasStock; 
-  });
+  // Se muestran todos los muebles (los agotados al final, se pueden pedir a medida).
+  // Categorías y búsqueda se comparan sin mayúsculas ni tildes (hay datos guardados como «sala»).
+  const filteredProducts = products
+    .filter((product) => {
+      if (soloDisponibles && !hayStock(product)) return false;
+      const term = normalizarTexto(searchTerm);
+      const matchSearch = !term || [product.nombre, product.codigo, product.color].some((v) => normalizarTexto(v).includes(term));
+      const matchCat = activeCategory === 'Todos' || normalizarTexto(product.categoria || 'Otros') === normalizarTexto(activeCategory);
+      const matchSub = activeCategory === 'Todos' || !activeSubcategory || normalizarTexto(product.subcategoria) === normalizarTexto(activeSubcategory);
+      return matchSearch && matchCat && matchSub;
+    })
+    .sort((x, y) => Number(hayStock(y)) - Number(hayStock(x)));
 
   // Funciones navegación Modal
   const navigateModal = (direction) => {
@@ -91,7 +85,7 @@ const Catalog = () => {
     setSelectedProduct(filteredProducts[newIndex]);
   };
 
-  const limpiarFiltros = () => { setSearchTerm(''); setActiveCategory('Todos'); setActiveSubcategory(null); };
+  const limpiarFiltros = () => { setSearchTerm(''); setActiveCategory('Todos'); setActiveSubcategory(null); setSoloDisponibles(false); };
   const etiquetaFiltro = activeCategory === 'Todos' ? 'Todos los muebles' : [activeCategory, activeSubcategory].filter(Boolean).join(' · ');
 
   if (loading) {
@@ -176,13 +170,19 @@ const Catalog = () => {
               );
             })}
           </div>
+
+          <label className="flex items-center justify-between gap-3 px-1 pt-3 border-t border-linea cursor-pointer select-none">
+            <span className="font-bold text-[15px]">Solo disponibles en tienda</span>
+            <input type="checkbox" checked={soloDisponibles} onChange={(e) => setSoloDisponibles(e.target.checked)} className="peer sr-only" />
+            <span aria-hidden="true" className="relative w-12 h-7 rounded-full bg-linea peer-checked:bg-terracota transition-colors after:content-[''] after:absolute after:top-1 after:left-1 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5 peer-focus-visible:ring-4 peer-focus-visible:ring-terracota/40"></span>
+          </label>
         </aside>
 
         {/* Resultados */}
         <section aria-label="Resultados" className="flex-1 min-w-0 flex flex-col gap-4 w-full">
           <div className="flex flex-wrap justify-between items-center gap-3">
             <p className="text-cafe"><strong className="text-espresso">{etiquetaFiltro}</strong> · {filteredProducts.length} {filteredProducts.length === 1 ? 'mueble' : 'muebles'}</p>
-            {(searchTerm || activeCategory !== 'Todos') && (
+            {(searchTerm || activeCategory !== 'Todos' || soloDisponibles) && (
               <button type="button" onClick={limpiarFiltros} className="font-extrabold text-sm text-terracota-oscuro hover:text-espresso px-1 min-h-10">
                 <i className="fas fa-times mr-1.5"></i>Limpiar filtros
               </button>
@@ -213,6 +213,8 @@ const Catalog = () => {
           onNext={() => navigateModal('next')}
           onPrev={() => navigateModal('prev')}
           hasNext={filteredProducts.length > 1}
+          productos={products}
+          onElegir={setSelectedProduct}
         />
       )}
     </div>
