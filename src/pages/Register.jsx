@@ -1,3 +1,4 @@
+import logoVertical from '../assets/logo-vertical.png';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -160,8 +161,9 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 font-sans">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-gray-200">
-        <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">Crear Cuenta</h1>
+      <div className="bg-white p-8 rounded-3xl shadow-lg w-full max-w-md animate-aparecer border border-gray-200">
+        <Link to="/" className="block mx-auto mb-4 w-40"><img src={logoVertical} alt="Mueblería Jose" className="w-full h-auto" /></Link>
+        <h1 className="font-display text-2xl font-semibold text-center text-gray-800 mb-6">Crear Cuenta</h1>
         
         {/* Este es el error GLOBAL, ya no saltará por culpa del DNI */}
         {error && (

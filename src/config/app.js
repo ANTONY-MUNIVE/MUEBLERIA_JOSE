@@ -1,6 +1,6 @@
 // Versión de la aplicación. Se registra en cada venta y en las métricas
 // para la ficha F4 (registro de condiciones e incidencias) de la tesis.
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.1.0';
 
 // Stock mínimo por defecto cuando el mueble no tiene uno propio (RF24).
 export const STOCK_MINIMO_DEFAULT = 5;

@@ -1,1 +1,114 @@
 @import "tailwindcss";
+
+/*
+ * Tema «Mueblería Jose» (v2.1)
+ * Diseño B (tarjetas redondeadas, títulos con serifa) con la paleta de la propuesta C:
+ * espresso, hueso y terracota. Las escalas gray, orange y blue se redefinen para que
+ * las pantallas que aún usan esas clases tomen los colores de la marca.
+ */
+@theme {
+  --font-sans: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+
+  /* Colores de marca */
+  --color-espresso: #241A14;
+  --color-espresso-2: #3A2C23;
+  --color-hueso: #F6F2EC;
+  --color-arena: #EFE8DF;
+  --color-linea: #DDD3C7;
+  --color-piedra: #CDBFB0;
+  --color-cafe: #5C4A3E;
+  --color-terracota: #D9825B;
+  --color-terracota-claro: #E59B78;
+  --color-terracota-oscuro: #8E4229;
+  --color-exito: #2C5E28;
+  --color-aviso: #7A4E00;
+  --color-aviso-fondo: #FFF4D6;
+
+  /* Neutros cálidos (antes gris frío) */
+  --color-gray-50: #F6F2EC;
+  --color-gray-100: #EFE8DF;
+  --color-gray-200: #DDD3C7;
+  --color-gray-300: #CDBFB0;
+  --color-gray-400: #A8998A;
+  --color-gray-500: #7D6D60;
+  --color-gray-600: #5C4A3E;
+  --color-gray-700: #47382E;
+  --color-gray-800: #33271F;
+  --color-gray-900: #241A14;
+  --color-gray-950: #1A120D;
+
+  /* Terracota (reemplaza naranja y azul como color de acción) */
+  --color-orange-50: #FBF1EC;
+  --color-orange-100: #F6DED2;
+  --color-orange-200: #EEC0AA;
+  --color-orange-300: #E59B78;
+  --color-orange-400: #D9825B;
+  --color-orange-500: #C46B45;
+  --color-orange-600: #A9543A;
+  --color-orange-700: #8E4229;
+  --color-orange-800: #6E3424;
+  --color-orange-900: #4F261A;
+  --color-blue-50: #FBF1EC;
+  --color-blue-100: #F6DED2;
+  --color-blue-200: #EEC0AA;
+  --color-blue-300: #E59B78;
+  --color-blue-400: #D9825B;
+  --color-blue-500: #C46B45;
+  --color-blue-600: #A9543A;
+  --color-blue-700: #8E4229;
+  --color-blue-800: #6E3424;
+  --color-blue-900: #4F261A;
+  --color-yellow-400: #D9825B;
+
+  /* Animaciones (se usaban en el código sin estar definidas) */
+  --animate-fade-in: fade-in 0.25s ease-out both;
+  --animate-fadeIn: fade-in 0.25s ease-out both;
+  --animate-fade-in-up: fade-in-up 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fadeInUp: fade-in-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade-in-down: fade-in-down 0.3s ease-out both;
+  --animate-paso-adelante: paso-adelante 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-paso-atras: paso-atras 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-aparecer: aparecer 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-sacudir: sacudir 0.4s ease-in-out;
+  --animate-progreso: progreso 10s linear forwards;
+
+  @keyframes progreso { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-in-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes fade-in-down { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  @keyframes paso-adelante { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+  @keyframes paso-atras { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+  @keyframes aparecer { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+  @keyframes sacudir {
+    0%, 100% { transform: none; }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+}
+
+@layer base {
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background-color: var(--color-hueso);
+    color: var(--color-espresso);
+    font-family: var(--font-sans);
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-terracota);
+    outline-offset: 2px;
+  }
+  ::selection { background: var(--color-terracota-claro); color: var(--color-espresso); }
+}
+
+/* Quien prefiere menos movimiento ve los cambios sin animación */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

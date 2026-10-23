@@ -125,7 +125,7 @@ const MisPedidos = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 fade-in">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+      <h1 className="font-display text-3xl font-semibold text-gray-800 mb-6 flex items-center gap-3">
         <i className="fas fa-box-open text-orange-600"></i> Mis Pedidos
       </h1>
 

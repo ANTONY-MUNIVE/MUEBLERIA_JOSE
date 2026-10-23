@@ -1,4 +1,4 @@
-# Casos de prueba de la aplicación (versión 2.0.0)
+# Casos de prueba de la aplicación (versión 2.1.0)
 
 Esta guía sirve para llenar el registro técnico **RT1** y la hoja **H6** de la tesis
 (indicadores AF1 y AF2). Cada caso corresponde a un requisito funcional (RF) de la
@@ -23,8 +23,8 @@ Antes de empezar:
 | CP10 | RF10 | Exportar la lista de muebles a Excel e importar el archivo. | Se descarga el Excel; la importación crea los muebles con su ingreso de stock. |
 | CP11 | RF11 | En la tienda, buscar «ropero» y filtrar por categoría. | El catálogo muestra solo los muebles que coinciden. |
 | CP12 | RF12 | En **Disponibilidad**, buscar `PRB-001` y luego un nombre parcial. | Muestra el stock actual y el estado (disponible, stock bajo o agotado) y el tiempo de respuesta. |
-| CP13 | RF13 | Registrar una venta con todos los campos obligatorios. | Se guarda con código `V-00001`, se genera la nota de venta y el aviso muestra la duración del formulario. |
-| CP14 | RF14 | Intentar guardar una venta sin apellidos, con cantidad 0, con precio vacío y, en un pedido, sin celular. | No se guarda; cada campo con error se marca en rojo con su mensaje y los demás datos se conservan. |
+| CP13 | RF13 | Pulsar «Nueva venta» y completar los 3 pasos: Cliente → Muebles → Pago. | Se guarda con código `V-00001`, se genera la nota de venta y el aviso muestra la duración del formulario. |
+| CP14 | RF14 | Pulsar «Continuar» sin apellidos; en un pedido, sin celular; en Muebles, con cantidad 0 o precio vacío. | No avanza de paso; cada campo con error se marca en rojo con su mensaje y los datos escritos se conservan. Si se guarda con un error de un paso anterior, la app vuelve a ese paso. |
 | CP15 | RF15 | Registrar una venta con dos muebles distintos. | La venta muestra ambos muebles y el total correcto. |
 | CP16 | RF16 | Registrar una venta pagada con Yape (monto, boleta y número de operación) y otra en efectivo con vuelto. | Se guardan el método, el monto, la boleta y el vuelto calculado. |
 | CP17 | RF17 | Vender 2 unidades de `PRB-001` (stock 5); luego intentar vender 4. | El stock queda en 3 y el kárdex muestra «Venta −2»; la segunda venta se rechaza por stock insuficiente. |
@@ -47,4 +47,4 @@ Antes de empezar:
 | Q1–Q3 | Hoja «Ventas»: la aplicación exige los campos obligatorios y el formato; la revisión contra la boleta se hace con F3/H5. |
 | ED1, ED3 | Hoja «Métricas» (con el modo medición activo): tiempo de respuesta en milisegundos por operación. |
 | ED2 | Se mide con las herramientas del navegador (pestaña Red), como indica RT3-B. |
-| F4 | La versión de la aplicación aparece en el menú lateral y en cada venta y métrica. |
+| F4 | La versión de la aplicación aparece en el menú lateral y en cada venta y métrica. La 2.1.0 trae el rediseño y la venta en 3 pasos: registre en F4 qué versión se usó en cada medición. |

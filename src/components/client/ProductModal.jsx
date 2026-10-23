@@ -27,7 +27,7 @@ const ProductModal = ({ product, onClose, onNext, onPrev, hasNext }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-espresso/70 backdrop-blur-sm p-4 animate-fade-in" role="dialog" aria-modal="true" aria-label={product.nombre}
       onClick={onClose}
     >
       
@@ -35,6 +35,7 @@ const ProductModal = ({ product, onClose, onNext, onPrev, hasNext }) => {
       {hasNext && (
         <button 
             onClick={(e) => { e.stopPropagation(); onPrev(); }}
+            aria-label="Mueble anterior"
             className="absolute left-2 md:left-8 text-white hover:text-gray-300 z-50 p-4 transition-transform hover:-translate-x-1"
         >
             <i className="fas fa-chevron-left text-4xl shadow-black drop-shadow-lg"></i>
@@ -43,13 +44,14 @@ const ProductModal = ({ product, onClose, onNext, onPrev, hasNext }) => {
 
       {/* CONTENIDO DEL MODAL */}
       <div 
-        className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden relative flex flex-col md:flex-row animate-fadeIn"
+        className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col md:flex-row animate-aparecer"
         onClick={(e) => e.stopPropagation()} 
       >
         
         {/* BOTÓN CERRAR (X) */}
         <button 
           onClick={onClose}
+          aria-label="Cerrar"
           className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-white text-gray-800 rounded-full w-10 h-10 flex items-center justify-center transition shadow-sm hover:rotate-90 duration-300"
         >
           <i className="fas fa-times text-lg"></i>
@@ -71,7 +73,7 @@ const ProductModal = ({ product, onClose, onNext, onPrev, hasNext }) => {
                 {product.categoria || 'Muebles'}
             </span>
             
-            <h2 className="text-3xl font-bold text-gray-900 mb-4 leading-tight">
+            <h2 className="font-display text-3xl font-semibold text-gray-900 mb-4 leading-tight">
                 {product.nombre}
             </h2>
             
@@ -106,6 +108,7 @@ const ProductModal = ({ product, onClose, onNext, onPrev, hasNext }) => {
       {hasNext && (
         <button 
             onClick={(e) => { e.stopPropagation(); onNext(); }}
+            aria-label="Mueble siguiente"
             className="absolute right-2 md:right-8 text-white hover:text-gray-300 z-50 p-4 transition-transform hover:translate-x-1"
         >
             <i className="fas fa-chevron-right text-4xl shadow-black drop-shadow-lg"></i>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { Outlet, Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config'; 
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { APP_VERSION } from '../config/app';
+import logoOscuro from '../assets/logo-horizontal-oscuro.png';
 
 const AdminLayout = () => {
   const { logout, user } = useAuth();
@@ -19,8 +20,15 @@ const AdminLayout = () => {
   const [isUnauthorized, setIsUnauthorized] = useState(false);
   const [countdown, setCountdown] = useState(5);
 
-  // Estado para el sidebar
+  // Estado del menú lateral (escritorio) y del menú en celular
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [menuMovil, setMenuMovil] = useState(false);
+  const { pathname } = useLocation();
+  const [rutaPrevia, setRutaPrevia] = useState(pathname);
+  if (rutaPrevia !== pathname) {
+    setRutaPrevia(pathname);
+    setMenuMovil(false);
+  }
 
   // --- EFECTO 1: VERIFICAR ROL Y PERMISOS ---
   useEffect(() => {
@@ -116,8 +124,8 @@ const AdminLayout = () => {
   // 1. Spinner de carga
   if (checkingPermissions) {
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
-            <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-hueso">
+            <div className="w-12 h-12 border-4 border-terracota border-t-transparent rounded-full animate-spin"></div>
             <p className="mt-4 text-gray-600 font-bold">Verificando credenciales...</p>
         </div>
     );
@@ -126,7 +134,7 @@ const AdminLayout = () => {
   // 2. Pantalla 404 Fake
   if (isUnauthorized) {
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center px-4">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-hueso text-center px-4">
             <h1 className="text-9xl font-extrabold text-gray-300">404</h1>
             <h2 className="text-3xl font-bold text-gray-800 mt-4">Página no encontrada</h2>
             <p className="text-gray-500 mt-2 max-w-md">
@@ -145,164 +153,129 @@ const AdminLayout = () => {
     );
   }
 
-  // 3. LAYOUT DEL ADMIN (ADAPTADO CON SIDEBAR DINÁMICO)
+  // 3. LAYOUT DEL ADMIN
+  const secciones = [
+    { titulo: 'Tienda', items: [
+      { mod: 'ventas', to: '/admin/ventas', icono: 'fa-cash-register', texto: 'Ventas' },
+      { mod: 'disponibilidad', to: '/admin/disponibilidad', icono: 'fa-search', texto: 'Disponibilidad' },
+      { mod: 'inventario', to: '/admin/inventario', icono: 'fa-warehouse', texto: 'Inventario' },
+      { mod: 'pedidos_personalizados', to: '/admin/pedidos-personalizados', icono: 'fa-hammer', texto: 'Pedidos a medida' },
+      { mod: 'reportes', to: '/admin/reportes', icono: 'fa-file-alt', texto: 'Reportes' },
+    ] },
+    { titulo: 'Gestión', items: [
+      { mod: 'dashboard', to: '/admin/dashboard', icono: 'fa-chart-line', texto: 'Dashboard' },
+      { mod: 'pedidos', to: '/admin/pedidos', icono: 'fa-shopping-bag', texto: 'Pedidos en línea' },
+      { mod: 'productos', to: '/admin/productos', icono: 'fa-couch', texto: 'Productos' },
+      { mod: 'productos', to: '/admin/categorias', icono: 'fa-tags', texto: 'Categorías' },
+      { mod: 'clientes', to: '/admin/mensajes', icono: 'fa-envelope', texto: 'Mensajes' },
+    ] },
+    { titulo: 'Web', items: [
+      { mod: 'web', to: '/admin/home-config', icono: 'fa-images', texto: 'Portada' },
+      { mod: 'web', to: '/admin/publicaciones', icono: 'fa-newspaper', texto: 'Publicaciones' },
+      { mod: 'web', to: '/admin/info-empresa', icono: 'fa-store', texto: 'Info de la empresa' },
+    ] },
+    { titulo: 'Sistema', items: [
+      { mod: 'roles', to: '/admin/roles', icono: 'fa-user-shield', texto: 'Roles y permisos' },
+    ] },
+  ].map((sec) => ({ ...sec, items: sec.items.filter((it) => canAccess(it.mod)) })).filter((sec) => sec.items.length);
+
+  const tituloActual = secciones.flatMap((sec) => sec.items).find((it) => pathname.startsWith(it.to))?.texto || 'Inicio';
+
+  const menu = (
+    <div className="h-full bg-espresso text-hueso rounded-3xl flex flex-col overflow-hidden">
+      <div className="px-5 pt-6 pb-4 flex flex-col items-center gap-1.5 border-b border-espresso-2">
+        <Link to="/admin" aria-label="Inicio del panel"><img src={logoOscuro} alt="Mueblería Jose" className="w-36 h-auto" /></Link>
+        <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-terracota-claro">{currentUserRole}</span>
+      </div>
+
+      <nav aria-label="Panel" className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-0.5">
+        {secciones.map((sec) => (
+          <div key={sec.titulo} className="flex flex-col gap-0.5 mb-3">
+            <span className="px-3 pb-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-piedra/80">{sec.titulo}</span>
+            {sec.items.map((it) => (
+              <NavLink
+                key={it.to}
+                to={it.to}
+                className={({ isActive }) => `group flex items-center gap-3 px-3 min-h-11 rounded-2xl font-bold text-[15px] transition-colors ${isActive ? 'bg-terracota text-espresso' : 'text-hueso/90 hover:bg-espresso-2 hover:text-hueso'}`}
+              >
+                <i className={`fas ${it.icono} w-5 text-center transition-transform group-hover:scale-110`}></i>
+                <span className="truncate">{it.texto}</span>
+              </NavLink>
+            ))}
+          </div>
+        ))}
+      </nav>
+
+      <div className="p-4 border-t border-espresso-2">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-terracota text-espresso flex items-center justify-center font-extrabold shrink-0">
+            {(currentUserName || user?.email || 'U').charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-bold truncate">{currentUserName || 'Usuario'}</div>
+            <div className="text-xs text-piedra truncate">{user?.email}</div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full min-h-11 rounded-2xl border border-cafe text-hueso hover:bg-red-700 hover:border-red-700 transition flex items-center justify-center gap-2 text-sm font-bold"
+        >
+          <i className="fas fa-sign-out-alt"></i> Cerrar sesión
+        </button>
+        <div className="text-[11px] text-piedra/80 text-center mt-2">Versión {APP_VERSION}</div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex min-h-screen bg-gray-100 font-sans overflow-hidden">
-      
-      {/* --- SIDEBAR --- */}
-      <aside 
-        className={`bg-gray-900 text-white flex flex-col shadow-2xl h-screen transition-all duration-300 ease-in-out ${
-            isSidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full overflow-hidden'
-        }`}
+    <div className="flex h-screen bg-hueso text-espresso font-sans overflow-hidden">
+      {/* Menú lateral en escritorio */}
+      <aside
+        className={`hidden lg:block shrink-0 transition-[width,padding] duration-300 ease-out ${isSidebarOpen ? 'w-[276px] p-3 pr-0' : 'w-0 p-0'} overflow-hidden`}
+        aria-hidden={!isSidebarOpen}
       >
-        <div className="p-6 text-2xl font-bold text-center border-b border-gray-800 tracking-wide whitespace-nowrap">
-          Admin Panel
-          <span className="block text-xs font-normal text-orange-500 mt-1 uppercase tracking-widest">
-            {currentUserRole}
-          </span>
-        </div>
-        
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto whitespace-nowrap">
-          {(canAccess('ventas') || canAccess('disponibilidad') || canAccess('inventario') || canAccess('pedidos_personalizados') || canAccess('reportes')) && (
-            <div className="pb-2 px-4 text-xs font-bold text-gray-500 uppercase">Tienda</div>
-          )}
-          {canAccess('ventas') && (
-             <Link to="/admin/ventas" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                <i className="fas fa-cash-register mr-3 w-5 text-center"></i> Ventas
-             </Link>
-          )}
-          {canAccess('disponibilidad') && (
-             <Link to="/admin/disponibilidad" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                <i className="fas fa-search mr-3 w-5 text-center"></i> Disponibilidad
-             </Link>
-          )}
-          {canAccess('inventario') && (
-             <Link to="/admin/inventario" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                <i className="fas fa-warehouse mr-3 w-5 text-center"></i> Inventario
-             </Link>
-          )}
-          {canAccess('pedidos_personalizados') && (
-             <Link to="/admin/pedidos-personalizados" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                <i className="fas fa-hammer mr-3 w-5 text-center"></i> Pedidos personalizados
-             </Link>
-          )}
-          {canAccess('reportes') && (
-             <Link to="/admin/reportes" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                <i className="fas fa-file-alt mr-3 w-5 text-center"></i> Reportes
-             </Link>
-          )}
-          {(canAccess('dashboard') || canAccess('pedidos') || canAccess('productos') || canAccess('clientes')) && (
-            <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-500 uppercase">Gestión</div>
-          )}
-          {canAccess('dashboard') && (
-             <Link to="/admin/dashboard" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                <i className="fas fa-chart-line mr-3 w-5 text-center"></i> Dashboard
-             </Link>
-          )}
-
-          {canAccess('pedidos') && (
-             <Link to="/admin/pedidos" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                 <i className="fas fa-shopping-bag mr-3 w-5 text-center"></i> Pedidos en línea
-             </Link>
-          )}
-
-          {canAccess('productos') && (
-            <>
-              <Link to="/admin/productos" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                  <i className="fas fa-box mr-3 w-5 text-center"></i> Productos
-              </Link>
-              <Link to="/admin/categorias" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                  <i className="fas fa-tags mr-3 w-5 text-center"></i> Categorías
-              </Link>
-            </>
-          )}
-
-          {canAccess('clientes') && (
-              <Link to="/admin/mensajes" className="block py-3 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white">
-                  <i className="fas fa-envelope mr-3 w-5 text-center"></i> Mensajes
-              </Link>
-          )}
-
-          {canAccess('web') && (
-            <>
-                <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-500 uppercase">Web</div>
-                <Link to="/admin/home-config" className="block py-2 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white text-sm">
-                    <i className="fas fa-home mr-3 w-5 text-center"></i> Portada
-                </Link>
-                <Link to="/admin/publicaciones" className="block py-2 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white text-sm">
-                    <i className="fas fa-newspaper mr-3 w-5 text-center"></i> Publicaciones
-                </Link>
-                <Link to="/admin/info-empresa" className="block py-2 px-4 rounded hover:bg-gray-800 transition text-gray-300 hover:text-white text-sm">
-                    <i className="fas fa-building mr-3 w-5 text-center"></i> Info Empresa
-                </Link>
-            </>
-          )}
-
-          {canAccess('roles') && (
-            <>
-                <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-500 uppercase">Sistema</div>
-                <Link to="/admin/roles" className="block py-2 px-4 rounded hover:bg-gray-800 transition text-orange-400 hover:text-orange-300 text-sm font-bold">
-                    <i className="fas fa-user-shield mr-3 w-5 text-center"></i> Roles y Permisos
-                </Link>
-            </>
-          )}
-        </nav>
-
-        <div className="p-4 border-t border-gray-800 bg-gray-900 whitespace-nowrap">
-             <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-orange-600 flex items-center justify-center font-bold text-white">
-                    {user?.email?.charAt(0).toUpperCase()}
-                </div>
-                <div className="overflow-hidden">
-                    <div className="text-sm font-bold truncate text-white">{user?.nombre || "Admin"}</div>
-                    <div className="text-xs text-gray-400 truncate">{user?.email}</div>
-                </div>
-            </div>
-            
-            <div className="text-[10px] text-gray-500 text-center mb-2">Versión {APP_VERSION}</div>
-            <button 
-                onClick={handleLogout}
-                className="w-full bg-red-600/90 hover:bg-red-600 text-white py-2 rounded transition flex items-center justify-center gap-2 text-sm font-bold"
-            >
-                <i className="fas fa-sign-out-alt"></i> Cerrar Sesión
-            </button>
-        </div>
+        <div className="w-[264px] h-full">{menu}</div>
       </aside>
 
-      {/* --- CONTENIDO PRINCIPAL --- */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        
-        {/* HEADER SUPERIOR */}
-        <header className="h-16 bg-white shadow-sm border-b flex items-center px-6 justify-between flex-shrink-0">
-            {/* Izquierda: Botón hamburguesa y Título */}
-            <div className="flex items-center gap-4">
-                <button 
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="text-gray-600 hover:text-orange-600 transition focus:outline-none p-2 rounded hover:bg-gray-100"
-                >
-                    <i className={`fas ${isSidebarOpen ? 'fa-indent' : 'fa-outdent'} text-2xl`}></i>
-                </button>
-                <h2 className="text-xl font-semibold text-gray-800 hidden sm:block">Panel de Administración</h2>
-            </div>
+      {/* Menú lateral en celular y tablet */}
+      {menuMovil && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <button type="button" aria-label="Cerrar menú" className="absolute inset-0 bg-espresso/60 animate-fade-in" onClick={() => setMenuMovil(false)}></button>
+          <aside className="relative w-[280px] max-w-[85vw] h-full p-3 animate-paso-atras">{menu}</aside>
+        </div>
+      )}
 
-            {/* Derecha: Botón de Previsualizar Web */}
-            <div className="flex items-center">
-                <Link 
-                    to="/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-semibold shadow-sm"
-                    title="Ver cómo los clientes ven la tienda"
-                >
-                    <i className="fas fa-external-link-alt"></i>
-                    <span className="hidden sm:inline">Ver Tienda</span>
-                </Link>
-            </div>
+      <main className="flex-1 min-w-0 flex flex-col h-screen">
+        <header className="h-16 shrink-0 flex items-center gap-3 px-4 sm:px-6">
+          <button
+            type="button"
+            onClick={() => (window.innerWidth >= 1024 ? setIsSidebarOpen((v) => !v) : setMenuMovil(true))}
+            className="w-11 h-11 rounded-full flex items-center justify-center hover:bg-arena transition"
+            aria-label="Mostrar u ocultar el menú"
+          >
+            <i className="fas fa-bars text-lg"></i>
+          </button>
+          <div className="min-w-0">
+            <p className="text-xs text-cafe font-bold leading-none">Panel del personal</p>
+            <h1 className="font-display text-xl font-semibold truncate">{tituloActual}</h1>
+          </div>
+          <Link
+            to="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto inline-flex items-center gap-2 h-11 px-4 rounded-full bg-white border border-linea font-bold text-sm hover:bg-espresso hover:text-hueso hover:border-espresso transition"
+            title="Ver cómo los clientes ven la tienda"
+          >
+            <i className="fas fa-external-link-alt"></i>
+            <span className="hidden sm:inline">Ver tienda</span>
+          </Link>
         </header>
 
-        {/* ÁREA DE CONTENIDO (OUTLET) */}
-        <div className="flex-1 overflow-auto p-8">
+        <div className="flex-1 overflow-auto px-4 sm:px-6 pb-8 pt-2">
+          <div key={pathname} className="animate-fade-in-up">
             <Outlet context={{ role: currentUserRole, nombre: currentUserName, canAccess }} />
+          </div>
         </div>
       </main>
     </div>

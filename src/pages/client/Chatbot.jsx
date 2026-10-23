@@ -13,7 +13,7 @@ export default function Chatbot() {
   const messagesEndRef = useRef(null);
 
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "¡Hola! Soy el asistente virtual de Mueblería José 🛋️. ¿Qué tipo de mueble estás buscando hoy?" }
+    { role: "assistant", content: "¡Hola! Soy el asistente virtual de Mueblería Jose 🛋️. ¿Qué tipo de mueble estás buscando hoy?" }
   ]);
 
   // Cargar productos de Firebase
@@ -50,7 +50,7 @@ export default function Chatbot() {
         ? productos.map(p => `[Mueble: ${p.nombre} | Precio: S/. ${p.precio}]`).join('\n')
         : "Actualmente estamos actualizando nuestro catálogo.";
 
-      const reglasOcultas = `[INSTRUCCIONES: Eres el vendedor de Mueblería José. Amable, persuasivo y muy breve. VENDES ESTO: ${catalogoTexto}. NUNCA inventes productos.]\n\nEl cliente dice: `;
+      const reglasOcultas = `[INSTRUCCIONES: Eres el vendedor de Mueblería Jose. Amable, persuasivo y muy breve. VENDES ESTO: ${catalogoTexto}. NUNCA inventes productos.]\n\nEl cliente dice: `;
       const historialLimpio = newConversation.filter((msg, index) => index !== 0);
       
       const mensajesParaLaAPI = historialLimpio.map((msg, index) => {

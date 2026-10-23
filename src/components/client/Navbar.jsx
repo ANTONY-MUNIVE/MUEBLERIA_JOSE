@@ -1,243 +1,203 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { db } from '../../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
-import logoTienda from '../../assets/MuebleriaJose.png';
+import logoOscuro from '../../assets/logo-horizontal-oscuro.png';
 
+const ENLACES = [
+  { to: '/', label: 'Inicio', end: true },
+  { to: '/catalogo', label: 'Catálogo' },
+  { to: '/contacto', label: 'Nosotros' },
+];
+
+const claseEnlace = ({ isActive }) =>
+  `py-2.5 border-b-2 font-bold transition-colors ${isActive ? 'text-terracota-claro border-terracota-claro' : 'text-hueso border-transparent hover:text-terracota-claro'}`;
+
+/** Cabecera oscura de la tienda (estilo de la propuesta C). */
 const Navbar = () => {
   const { user, logout } = useAuth();
-  const { totalItems } = useCart(); // Usamos el cálculo directo del Context
+  const { totalItems } = useCart();
   const navigate = useNavigate();
-  
-  // Estados
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [userRole, setUserRole] = useState(null); // Para saber si mostramos botón Admin
+  const { pathname } = useLocation();
 
-  // Referencia para cerrar menú al hacer clic fuera (opcional pero recomendado)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuMovil, setMenuMovil] = useState(false);
+  const [userRole, setUserRole] = useState(null);
   const menuRef = useRef(null);
 
-  // 1. EFECTO: Obtener el rol del usuario para el menú
+  // Rol del usuario para mostrar el acceso al panel
   useEffect(() => {
-    const fetchRole = async () => {
-      if (user) {
-        try {
-          const docRef = doc(db, "users", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setUserRole(docSnap.data().role);
-          }
-        } catch (error) {
-          console.error("Error obteniendo rol:", error);
-        }
-      } else {
-        setUserRole(null);
-      }
-    };
-    fetchRole();
+    let vivo = true;
+    if (!user) return undefined;
+    getDoc(doc(db, 'users', user.uid))
+      .then((snap) => { if (vivo) setUserRole(snap.exists() ? snap.data().role : null); })
+      .catch((error) => console.error('Error obteniendo rol:', error));
+    return () => { vivo = false; };
   }, [user]);
 
-  // 2. EFECTO: Cerrar menú al hacer clic fuera
+  // Cerrar el menú de usuario al hacer clic fuera o con Escape
   useEffect(() => {
-    const handleClickOutside = (event) => {
-        if (menuRef.current && !menuRef.current.contains(event.target)) {
-            setIsMenuOpen(false);
-        }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    const fuera = (event) => { if (menuRef.current && !menuRef.current.contains(event.target)) setIsMenuOpen(false); };
+    const escape = (event) => { if (event.key === 'Escape') { setIsMenuOpen(false); setMenuMovil(false); } };
+    document.addEventListener('mousedown', fuera);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', escape); };
   }, []);
 
+  // Al cambiar de página se cierran los menús
+  const [rutaPrevia, setRutaPrevia] = useState(pathname);
+  if (rutaPrevia !== pathname) {
+    setRutaPrevia(pathname);
+    setMenuMovil(false);
+    setIsMenuOpen(false);
+  }
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchTerm.trim()) {
-      navigate(`/catalogo?q=${searchTerm}`);
-      setSearchTerm(""); 
+    const q = searchTerm.trim();
+    if (q) {
+      navigate(`/catalogo?q=${encodeURIComponent(q)}`);
+      setSearchTerm('');
     }
   };
 
   const handleLogout = async () => {
     try {
-        setIsMenuOpen(false); // Cerramos menú
-        await logout();
-        navigate('/');
+      setIsMenuOpen(false);
+      await logout();
+      navigate('/');
     } catch (error) {
-        console.error("Error al salir", error);
+      console.error('Error al salir', error);
     }
   };
 
+  const esPersonal = user && userRole && userRole !== 'cliente';
+  const nombreVisible = user ? (user.displayName || user.email?.split('@')[0]) : '';
+
+  const buscador = (id, clase) => (
+    <form onSubmit={handleSearch} role="search" className={`items-center gap-2.5 bg-hueso rounded-full px-4 h-11 ${clase}`}>
+      <i className="fas fa-search text-espresso/70" aria-hidden="true"></i>
+      <label htmlFor={id} className="sr-only">Buscar muebles</label>
+      <input
+        id={id}
+        type="search"
+        placeholder="Buscar muebles..."
+        className="flex-1 min-w-0 bg-transparent text-espresso placeholder:text-cafe/70 outline-none text-[15px]"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
+    </form>
+  );
+
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-50 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
-        
-            {/* LOGO */}
-            <div className="flex items-center gap-2">
-                <img src={logoTienda} alt="Logo de la Tienda" className="h-20 w-auto" />
-                <span className="text-xl font-bold text-gray-900">Mueblería José</span>
-            </div>
+    <header className="bg-espresso text-hueso sticky top-0 z-50 shadow-[0_1px_0_rgba(0,0,0,0.25)]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-[72px] flex items-center gap-4 lg:gap-7">
+        {/* Menú móvil */}
+        <button
+          type="button"
+          onClick={() => setMenuMovil((v) => !v)}
+          className="md:hidden w-11 h-11 -ml-2 flex items-center justify-center rounded-full hover:bg-espresso-2"
+          aria-label={menuMovil ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={menuMovil}
+        >
+          <i className={`fas ${menuMovil ? 'fa-times' : 'fa-bars'} text-xl`}></i>
+        </button>
 
-            {/* BUSCADOR (Desktop) */}
-            <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg mx-8 relative">
-                <input 
-                    type="text"
-                    placeholder="Buscar muebles..." 
-                    className="w-full border border-gray-300 rounded-full py-2.5 px-4 pl-10 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-gray-50 transition-all"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <button type="submit" className="absolute left-3 top-3 text-gray-400 hover:text-orange-600 transition">
-                    <i className="fas fa-search"></i>
+        <Link to="/" className="flex items-center shrink-0" aria-label="Mueblería Jose, inicio">
+          <img src={logoOscuro} alt="Mueblería Jose" className="h-11 sm:h-12 w-auto" />
+        </Link>
+
+        {buscador('buscar-escritorio', 'hidden md:flex flex-1 max-w-md')}
+
+        <nav aria-label="Principal" className="hidden md:flex items-center gap-6 ml-auto text-[15px]">
+          {ENLACES.map((e) => <NavLink key={e.to} to={e.to} end={e.end} className={claseEnlace}>{e.label}</NavLink>)}
+        </nav>
+
+        <div className="flex items-center gap-2 ml-auto md:ml-0">
+          <Link to="/carrito" className="relative w-11 h-11 flex items-center justify-center rounded-full hover:bg-espresso-2 transition" aria-label={`Carrito, ${totalItems} ${totalItems === 1 ? 'mueble' : 'muebles'}`}>
+            <i className="fas fa-shopping-bag text-xl"></i>
+            {totalItems > 0 && (
+              <span key={totalItems} className="absolute top-0.5 right-0 min-w-5 h-5 px-1 rounded-full bg-terracota text-espresso text-[11px] font-extrabold flex items-center justify-center animate-aparecer">
+                {totalItems}
+              </span>
+            )}
+          </Link>
+
+          <div className="relative" ref={menuRef}>
+            {user ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen((v) => !v)}
+                  className="flex items-center gap-2.5 h-11 pl-1 pr-2 rounded-full hover:bg-espresso-2 transition"
+                  aria-haspopup="menu"
+                  aria-expanded={isMenuOpen}
+                >
+                  <span className="w-9 h-9 rounded-full bg-terracota text-espresso font-extrabold flex items-center justify-center" aria-hidden="true">
+                    {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                  </span>
+                  <span className="hidden lg:flex flex-col text-left leading-tight">
+                    <span className="text-xs text-piedra">Hola,</span>
+                    <span className="text-sm font-bold max-w-[110px] truncate">{nombreVisible}</span>
+                  </span>
+                  <i className={`fas fa-chevron-down text-xs text-piedra transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}></i>
                 </button>
-            </form>
 
-            {/* MENÚ DE NAVEGACIÓN DERECHO */}
-            <div className="flex items-center gap-6">
-                <Link to="/" className="text-gray-600 hover:text-orange-600 font-bold transition hidden sm:block">
-                    Inicio
-                </Link>
-                <Link to="/catalogo" className="text-gray-600 hover:text-orange-600 font-bold transition hidden sm:block">
-                    Catálogo
-                </Link>
-                <Link to="/contacto" className="text-gray-600 hover:text-orange-600 font-bold transition hidden sm:block">
-                    Nosotros
-                </Link>
-                
-                {/* ICONO DEL CARRITO */}
-                <Link to="/carrito" className="relative group p-2">
-                    <i className="fas fa-shopping-bag text-2xl text-gray-600 group-hover:text-orange-600 transition"></i>
-                    {totalItems > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full animate-bounce shadow-md border-2 border-white">
-                            {totalItems}
-                        </span>
-                    )}
-                </Link>
-
-                {/* ZONA DE USUARIO / LOGIN */}
-                <div className="border-l pl-6 ml-2 border-gray-200 relative" ref={menuRef}>
-                    {user ? (
-                        // --- ESTE ES EL NUEVO MENÚ DESPLEGABLE ---
-                        <div>
-                            {/* Botón Trigger */}
-                            <button 
-                                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                className="flex items-center gap-3 group focus:outline-none"
-                            >
-                                <div className="w-9 h-9 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-transparent group-hover:ring-orange-200 transition">
-                                    {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
-                                </div>
-                                <div className="hidden lg:block text-left">
-                                    <p className="text-xs text-gray-500 font-bold">Hola,</p>
-                                    <p className="text-sm font-bold text-gray-800 max-w-[100px] truncate">
-                                        {user.displayName || user.email.split('@')[0]}
-                                    </p>
-                                </div>
-                                <i className={`fas fa-chevron-down text-xs text-gray-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}></i>
-                            </button>
-
-                            {/* Dropdown Menu */}
-                            {isMenuOpen && (
-                                <div className="absolute right-0 mt-3 w-60 bg-white rounded-xl shadow-xl py-2 border border-gray-100 transform origin-top-right transition-all animate-fade-in-up z-50">
-                                    
-                                    {/* Encabezado del menú (Móvil) */}
-                                    <div className="px-4 py-3 border-b border-gray-100 lg:hidden">
-                                        <p className="text-xs text-gray-500 font-bold uppercase">Conectado como:</p>
-                                        <p className="text-sm font-bold text-gray-800 truncate">{user.email}</p>
-                                    </div>
-
-                                    {/* --- AQUÍ ESTÁ EL CAMBIO CLAVE --- */}
-                                    {/* En lugar de listar roles, preguntamos: ¿Es algo distinto a cliente? */}
-                                    {userRole && userRole !== 'cliente' && (
-                                        <>
-                                            <div className="px-4 py-2 bg-orange-50 border-b border-orange-100">
-                                                <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider mb-1">
-                                                    Zona de Staff
-                                                </p>
-                                                <Link 
-                                                    to="/admin" 
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="flex items-center gap-3 text-sm text-gray-800 font-bold hover:text-orange-600 transition"
-                                                >
-                                                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-orange-500">
-                                                        <i className="fas fa-user-shield"></i>
-                                                    </div>
-                                                    Panel Administrativo
-                                                </Link>
-                                            </div>
-                                            <div className="border-t border-gray-100 my-1"></div>
-                                        </>
-                                    )}
-                                    {/* ---------------------------------- */}
-
-                                    <div className="py-1">
-                                        <Link 
-                                            to="/mis-pedidos" 
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
-                                        >
-                                            <i className="fas fa-shopping-bag w-8 text-gray-400 group-hover:text-orange-500 transition"></i>
-                                            <span className="font-medium group-hover:text-gray-900">Mis Pedidos</span>
-                                        </Link>
-
-                                        <Link 
-                                            to="/perfil" 
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
-                                        >
-                                            <i className="fas fa-user-cog w-8 text-gray-400 group-hover:text-orange-500 transition"></i>
-                                            <span className="font-medium group-hover:text-gray-900">Mi Cuenta</span>
-                                        </Link>
-
-                                        <Link 
-                                            to="/ayuda" 
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
-                                        >
-                                            <i className="fas fa-life-ring w-8 text-gray-400 group-hover:text-orange-500 transition"></i>
-                                            <span className="font-medium group-hover:text-gray-900">Ayuda y Soporte</span>
-                                        </Link>
-                                    </div>
-
-                                    <div className="border-t border-gray-100 my-1"></div>
-
-                                    <button 
-                                        onClick={handleLogout}
-                                        className="w-full text-left flex items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition font-bold"
-                                    >
-                                        <i className="fas fa-sign-out-alt w-8"></i> Cerrar Sesión
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <Link to="/login" className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-full font-bold text-sm transition shadow-md hover:shadow-lg">
-                            Ingresar
+                {isMenuOpen && (
+                  <div role="menu" className="absolute right-0 mt-3 w-64 bg-white text-espresso rounded-2xl shadow-xl py-2 border border-linea origin-top-right animate-fade-in-down z-50">
+                    <div className="px-4 py-3 border-b border-linea lg:hidden">
+                      <p className="text-xs text-cafe font-bold">Conectado como</p>
+                      <p className="text-sm font-bold truncate">{user.email}</p>
+                    </div>
+                    {esPersonal && (
+                      <div className="px-2 py-2 border-b border-linea">
+                        <Link role="menuitem" to="/admin" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-espresso text-hueso font-bold hover:bg-espresso-2 transition">
+                          <i className="fas fa-user-shield text-terracota-claro w-5 text-center"></i> Panel del personal
                         </Link>
+                      </div>
                     )}
-                </div>
-            </div>
+                    <div className="py-1">
+                      {[
+                        { to: '/mis-pedidos', icono: 'fa-shopping-bag', texto: 'Mis pedidos' },
+                        { to: '/perfil', icono: 'fa-user-cog', texto: 'Mi cuenta' },
+                        { to: '/ayuda', icono: 'fa-life-ring', texto: 'Ayuda y soporte' },
+                      ].map((o) => (
+                        <Link key={o.to} role="menuitem" to={o.to} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-hueso transition">
+                          <i className={`fas ${o.icono} w-5 text-center text-cafe`}></i>
+                          <span className="font-semibold">{o.texto}</span>
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="border-t border-linea mt-1 pt-1">
+                      <button role="menuitem" type="button" onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition font-bold">
+                        <i className="fas fa-sign-out-alt w-5 text-center"></i> Cerrar sesión
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Link to="/login" className="h-11 px-5 flex items-center rounded-full bg-terracota text-espresso font-extrabold text-sm hover:bg-terracota-claro transition">
+                Ingresar
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* BUSCADOR MOVIL */}
-      <div className="md:hidden px-4 pb-4 bg-white border-b border-gray-100">
-          <form onSubmit={handleSearch} className="relative">
-            <input 
-                type="text"
-                placeholder="Buscar..." 
-                className="w-full border border-gray-300 rounded-lg py-2 px-4 pl-10 bg-gray-50 focus:outline-none focus:border-orange-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <button type="submit" className="absolute left-3 top-2.5 text-gray-400">
-                <i className="fas fa-search"></i>
-            </button>
-          </form>
-      </div>
-    </nav>
+      {/* Buscador y menú en celular */}
+      <div className="md:hidden px-4 pb-3">{buscador('buscar-movil', 'flex')}</div>
+      {menuMovil && (
+        <nav aria-label="Principal" className="md:hidden border-t border-espresso-2 px-4 py-2 flex flex-col animate-fade-in-down">
+          {ENLACES.map((e) => (
+            <NavLink key={e.to} to={e.to} end={e.end} className={({ isActive }) => `py-3 font-bold ${isActive ? 'text-terracota-claro' : 'text-hueso'}`}>{e.label}</NavLink>
+          ))}
+        </nav>
+      )}
+    </header>
   );
 };
 

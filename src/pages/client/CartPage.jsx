@@ -189,7 +189,7 @@ const CartPage = () => {
     return (
       <div className="text-center py-20 min-h-[60vh] flex flex-col justify-center items-center">
         <i className="fas fa-shopping-basket text-6xl text-gray-200 mb-6"></i>
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Tu carrito está vacío</h2>
+        <h2 className="font-display text-3xl font-semibold text-gray-800 mb-2">Tu carrito está vacío</h2>
         <Link to="/catalogo" className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 rounded-full font-bold transition shadow-lg mt-6">
             Ir al Catálogo
         </Link>
@@ -263,7 +263,7 @@ const CartPage = () => {
                     <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6 text-orange-600">
                         <i className="fas fa-lock text-3xl"></i>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Inicia Sesión para Continuar</h2>
+                    <h2 className="font-display text-2xl font-semibold text-gray-800 mb-2">Inicia Sesión para Continuar</h2>
                     <p className="text-gray-500 mb-8">
                         Para asegurar tu pedido, necesitas una cuenta. <br/>
                         <b>Tus productos se guardarán automáticamente.</b>
@@ -292,7 +292,7 @@ const CartPage = () => {
                         <span>Datos autocompletados para <b>{user.email}</b></span>
                     </div>
 
-                    <h2 className="text-2xl font-bold mb-6">Datos de Entrega</h2>
+                    <h2 className="font-display text-2xl font-semibold mb-6">Datos de Entrega</h2>
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-bold mb-1 text-gray-700">Email</label>
@@ -352,7 +352,7 @@ const CartPage = () => {
                 <i className="fas fa-check text-4xl text-green-600"></i>
             </div>
             
-            <h2 className="text-3xl font-extrabold text-gray-800">¡Pedido Exitoso!</h2>
+            <h2 className="font-display text-3xl font-semibold text-gray-800">¡Pedido Exitoso!</h2>
             <p className="text-gray-500 mt-2">Tu orden <b>{orderId}</b> ha sido registrada.</p>
             
             <div className="mt-8 border-t border-b py-6 text-left">

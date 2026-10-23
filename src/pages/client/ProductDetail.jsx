@@ -62,7 +62,7 @@ const ProductDetail = () => {
                 {product.categoria || 'Muebles de Diseño'}
             </span>
             
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">{product.nombre}</h1>
+            <h1 className="font-display text-4xl font-semibold text-gray-900 mb-4">{product.nombre}</h1>
             
             <div className="text-3xl font-bold text-gray-900 mb-6 border-b border-gray-100 pb-6">
                 {formatPrice(product.precio)}
