@@ -15,7 +15,9 @@ Navegador ──POST /api/ia──▶ Vercel (esta carpeta) ──▶ integrate.
 - **Modelo principal:** `nvidia/nemotron-3.5-lightning-30b-a3b`.
 - **Respaldo:** `meta/llama-3.1-8b-instruct`, que se usa si el principal está saturado, tarda o no existe.
 - Solo acepta llamadas de los dominios permitidos y como máximo 20 por minuto por IP.
-- La respuesta no puede pasar de 600 tokens en el chat ni de 1000 en el diagnóstico.
+- La respuesta no puede pasar de 800 tokens en el chat ni de 1200 en el diagnóstico.
+- A los modelos Nemotron se les desactiva el razonamiento (`chat_template_kwargs.enable_thinking = false`).
+  Así responden más rápido y no gastan los tokens «pensando».
 
 ## Desplegar (una sola vez)
 
@@ -33,6 +35,10 @@ Navegador ──POST /api/ia──▶ Vercel (esta carpeta) ──▶ integrate.
    - `ORIGENES_PERMITIDOS` (opcional): por defecto
      `https://munive-b3ba5.web.app,https://munive-b3ba5.firebaseapp.com,http://localhost:5173`.
 5. Pulse **Deploy**. La URL queda como `https://<proyecto>.vercel.app/api/ia`.
+   **Importante:** Vercel publica en producción la rama principal del repositorio (`main`). Mientras
+   el PR no esté fusionado, `proxy-ia/` solo existe en `feature/tesis-ventas-inventario`. En ese caso
+   vaya a **Settings → Git → Production Branch**, ponga `feature/tesis-ventas-inventario` y vuelva a
+   desplegar. Si no, `/api/ia` responde 404.
 6. En el `.env` de la app (no se sube a GitHub) ponga:
    ```
    VITE_IA_URL=https://<proyecto>.vercel.app/api/ia

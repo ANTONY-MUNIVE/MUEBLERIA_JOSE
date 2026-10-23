@@ -17,9 +17,15 @@ const ORIGENES_POR_DEFECTO = [
 
 // Límites por tipo de tarea (el navegador no puede pedir más que esto)
 const TAREAS = {
-  chat: { max_tokens: 600, temperature: 0.5 },
-  diagnostico: { max_tokens: 1000, temperature: 0.3 },
+  chat: { max_tokens: 800, temperature: 0.5, top_p: 0.95 },
+  diagnostico: { max_tokens: 1200, temperature: 0.3, top_p: 0.95 },
 };
+
+// Los modelos Nemotron «piensan» antes de responder si no se les indica lo contrario: eso gasta los
+// tokens y puede dejar la respuesta vacía. Para el chat y el diagnóstico se desactiva el razonamiento.
+export const opcionesModelo = (modelo) => (/nemotron/i.test(modelo)
+  ? { chat_template_kwargs: { enable_thinking: false } }
+  : {});
 
 const MAX_MENSAJES = 24;
 const MAX_CARACTERES = 150000; // el chatbot envía el catálogo completo
@@ -75,7 +81,7 @@ const llamarModelo = async (modelo, messages, opciones) => {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({ model: modelo, messages, stream: false, ...opciones }),
+      body: JSON.stringify({ model: modelo, messages, stream: false, ...opciones, ...opcionesModelo(modelo) }),
       signal: ctrl.signal,
     });
     const data = await r.json().catch(() => ({}));
