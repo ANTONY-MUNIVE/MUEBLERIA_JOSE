@@ -71,11 +71,12 @@ const Catalog = () => {
     const term = searchTerm.toLowerCase();
     const matchSearch = product.nombre ? product.nombre.toLowerCase().includes(term) : false;
     
+    // Hay muebles antiguos guardados como «sala» o «dormitorio»: se compara sin mayúsculas
     let matchCat = true;
-    if (activeCategory !== 'Todos') matchCat = prodCat === activeCategory;
+    if (activeCategory !== 'Todos') matchCat = prodCat.toLowerCase() === activeCategory.trim().toLowerCase();
 
     let matchSub = true;
-    if (activeCategory !== 'Todos' && activeSubcategory) matchSub = prodSub === activeSubcategory;
+    if (activeCategory !== 'Todos' && activeSubcategory) matchSub = prodSub.toLowerCase() === activeSubcategory.trim().toLowerCase();
 
     return matchSearch && matchCat && matchSub && hasStock; 
   });
