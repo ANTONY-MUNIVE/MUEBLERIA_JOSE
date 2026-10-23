@@ -1,4 +1,4 @@
-# Reglas de Firestore y Storage
+# Reglas de Firestore
 
 Las reglas ya están en el repositorio:
 

@@ -1,4 +1,4 @@
-# Casos de prueba de la aplicación (versión 2.1.1)
+# Casos de prueba de la aplicación (versión 2.1.2)
 
 Esta guía sirve para llenar el registro técnico **RT1** y la hoja **H6** de la tesis
 (indicadores AF1 y AF2). Cada caso corresponde a un requisito funcional (RF) de la
@@ -47,4 +47,4 @@ Antes de empezar:
 | Q1–Q3 | Hoja «Ventas»: la aplicación exige los campos obligatorios y el formato; la revisión contra la boleta se hace con F3/H5. |
 | ED1, ED3 | Hoja «Métricas» (con el modo medición activo): tiempo de respuesta en milisegundos por operación. |
 | ED2 | Se mide con las herramientas del navegador (pestaña Red), como indica RT3-B. |
-| F4 | La versión de la aplicación aparece en el menú lateral y en cada venta y métrica. La 2.1.0 trae el rediseño y la venta en 3 pasos: registre en F4 qué versión se usó en cada medición. |
+| F4 | La versión de la aplicación aparece en el menú lateral y en cada venta y métrica. La 2.1.0 trae el rediseño y la venta en 3 pasos (cambios de cada versión en `CHANGELOG.md`): registre en F4 qué versión se usó en cada medición. |

@@ -10,6 +10,8 @@ Responde en español; todo el texto visible de la app va en español de Perú.
 - Firebase 12: Firestore y Auth; Storage no se usa (`src/firebase/config.js`, variables en `.env`, que no se sube).
 - `npm run dev` (desarrollo), `npm run build`, `npx eslint src`.
 - Hosting: Firebase Hosting (`firebase deploy --only hosting`, sirve `dist/`).
+- Instalación desde cero y despliegue: `docs/INSTALACION.md`. Cambios por versión: `CHANGELOG.md`
+  (agregue una entrada al subir `APP_VERSION`).
 
 ## Estructura
 
@@ -46,7 +48,8 @@ Responde en español; todo el texto visible de la app va en español de Perú.
 
 ## Git
 
-- Trabajo actual: rama `feature/tesis-ventas-inventario` (PR #1 hacia `main`).
+- Rama principal: `main` (la v2 se integró desde `feature/tesis-ventas-inventario` con el PR #1).
+  Trabaje en una rama nueva y abra un PR hacia `main`.
 - **No toque** las ramas `respaldo/main-v1-antes-del-merge` ni `respaldo/v2.0.0-antes-del-rediseno`.
 
 ## Pendientes conocidos
