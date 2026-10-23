@@ -38,6 +38,7 @@ requisitos de la Tabla 23 de la tesis; los casos de prueba están en `docs/CASOS
   `capturasYape/{ventaId}` dentro de la transacción de la venta, sin Firebase Storage (plan Spark).
 - Visor de la captura; al corregir una venta se conserva la captura anterior si no se adjunta otra.
 - Corrección: `corregirVenta` usaba el pago antes de calcularlo.
+- Regla de Firestore para `capturasYape`: solo el personal, imagen menor de 1 MB.
 
 ### Contenido y tienda
 - Info de la empresa: secciones en modo lectura con botón Editar; redes sociales como CRUD (agregar,
@@ -46,16 +47,6 @@ requisitos de la Tabla 23 de la tesis; los casos de prueba están en `docs/CASOS
   nombre, código o color sin importar tildes.
 - Detalle del producto con ficha, stock real, consulta por WhatsApp y «Muebles similares»; el modal
   muestra «También te puede gustar».
-
-### Firestore
-- Reglas versionadas en `firestore.rules` (versión compatible): reglas originales más `esPersonal()`
-  para las colecciones nuevas; nadie puede cambiarse su propio rol; `movimientos` y `metricas` solo
-  admiten creación; `capturasYape` solo para el personal y menor de 1 MB.
-- Los roles se guardan con el nombre como ID (`roles/{nombre}`); los roles antiguos se migran al abrir
-  Roles y permisos.
-- Ventas y Reportes leen cada colección por separado (`leerVarias`) y explican qué falló.
-- El panel muestra el error de permisos en lugar del 404 falso; el 404 queda para el rol `cliente`.
-- `firebase.json` indica el sitio de Hosting.
 
 ## [2.1.0] — 2026-10-22
 
@@ -67,6 +58,16 @@ requisitos de la Tabla 23 de la tesis; los casos de prueba están en `docs/CASOS
 - Panel: menú lateral oscuro por secciones y menú deslizable en celular.
 - Accesibilidad: controles de 44 px, foco visible, enlace para saltar al contenido y respeto a «reducir
   movimiento».
+
+### Firestore
+- Reglas versionadas en `firestore.rules` (versión compatible): reglas originales más `esPersonal()`
+  para las colecciones nuevas; nadie puede cambiarse su propio rol; `movimientos` y `metricas` solo
+  admiten creación.
+- Los roles se guardan con el nombre como ID (`roles/{nombre}`); los roles antiguos se migran al abrir
+  Roles y permisos.
+- Ventas y Reportes leen cada colección por separado (`leerVarias`) y explican qué falló.
+- El panel muestra el error de permisos en lugar del 404 falso; el 404 queda para el rol `cliente`.
+- `firebase.json` indica el sitio de Hosting.
 
 ### Ventas
 - Formulario de venta en 3 pasos (Cliente → Muebles → Pago) con validación por paso, búsqueda de muebles

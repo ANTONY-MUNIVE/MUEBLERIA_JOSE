@@ -14,7 +14,9 @@ Son las reglas originales del proyecto con el acceso del personal a la versión 
 
 | Colección | Leer | Escribir |
 |---|---|---|
-| `muebles`, `categories`, `content`, `publications` | Todos | `muebles`: almacenero, admin o cualquier miembro del personal (las ventas cambian el stock). El resto: almacenero o admin |
+| `muebles` | Todos | Personal (las ventas y el inventario cambian el stock) |
+| `categories` | Todos | Almacenero o admin |
+| `content`, `publications` | Todos | Admin |
 | `ventas`, `contadores`, `pedidosPersonalizados` | Personal (rol distinto de «cliente») | Personal |
 | `movimientos`, `metricas` | Personal | Solo crear; nadie edita ni borra |
 | `capturasYape` | Personal | Personal (imagen menor de 1 MB); borrar: admin |
@@ -27,7 +29,9 @@ La única restricción nueva es que **ningún usuario puede cambiarse su propio 
 cliente podía ponerse `role: "admin"` desde el navegador.
 
 Los permisos por módulo (Ventas, Inventario...) se controlan en el menú del panel. En Firestore,
-cualquier rol distinto de «cliente» puede usar las colecciones de la tienda.
+cualquier rol distinto de «cliente» puede usar las colecciones de la tienda; en cambio, Portada,
+Publicaciones, Info de la empresa y Roles solo guardan cambios con rol admin, y Categorías con
+almacenero o admin, aunque el módulo esté asignado a otro rol.
 
 ## Cómo publicarlas
 
