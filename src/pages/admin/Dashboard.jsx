@@ -6,8 +6,8 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import html2pdf from 'html2pdf.js';
-// NUVEO: Importamos el SDK de Google Gemini
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// Diagnóstico con IA a través del intermediario de Vercel (proxy-ia)
+import { consultarIA } from '../../services/iaService';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({ products: 0, orders: 0, users: 0, totalRevenue: 0 });
@@ -76,28 +76,20 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
-  // --- NUEVA FUNCIÓN: Generar Diagnóstico con IA ---
-  // --- NUEVA FUNCIÓN: Generar Diagnóstico con OpenRouter (Gemma 3) ---
+  // --- Diagnóstico con IA (NVIDIA Nemotron a través de proxy-ia) ---
   const handleGenerateAIDiagnosis = async () => {
     setIsAnalyzing(true);
     setAiError("");
     setAiDiagnosis("");
 
     try {
-      // 1. Obtener la API Key de tu .env (¡Asegúrate de que sea la de OpenRouter!)
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
-      
-      if (!apiKey) {
-        throw new Error("No se encontró la API Key. Verifica tu archivo .env");
-      }
-
-      // 2. Crear el "Prompt"
+      // Datos agregados del negocio (sin datos personales de clientes)
       const prompt = `
         Eres un experto analista de e-commerce y asesor de negocios. Analiza los siguientes datos en tiempo real de mi tienda de muebles y dame un diagnóstico ejecutivo claro, profesional y directo (máximo 3 párrafos).
         
         DATOS ACTUALES:
         - Total de Productos en catálogo: ${stats.products}
-        - Ventas Totales Acumuladas: $${stats.totalRevenue}
+        - Ventas Totales Acumuladas: S/ ${stats.totalRevenue}
         - Total de Pedidos Realizados: ${stats.orders}
         - Desglose del Inventario por Categoría: ${categoryData.map(c => `${c.name} (${c.cantidad})`).join(', ')}
         - Estado actual de los Pedidos: ${orderStatusData.map(o => `${o.name} (${o.valor})`).join(', ')}
@@ -107,41 +99,11 @@ const Dashboard = () => {
         1. Un resumen breve del estado general de la tienda.
         2. Alertas importantes.
         3. Una sugerencia estratégica rápida.
-        No uses formatos markdown complejos, usa guiones para las listas si es necesario.
+        Responde en español. No uses formatos markdown complejos, usa guiones para las listas si es necesario.
       `;
 
-      // 3. Llamar a OpenRouter mediante fetch
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          // OpenRouter recomienda enviar estos dos headers
-          "HTTP-Referer": window.location.origin, 
-          "X-Title": "Dashboard Muebleria", 
-        },
-        body: JSON.stringify({
-          models: [
-            "google/gemma-3-12b-it:free",          // Opción 1
-            "google/gemma-2-9b-it:free",           // Opción 2 (Respaldo)
-            "meta-llama/llama-3-8b-instruct:free"  // Opción 3 (Último respaldo)
-          ],
-          messages: [
-            { role: "user", content: prompt }
-          ]
-        })
-      });
-
-      // 4. Manejar posibles errores de la petición
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || "Error al conectar con OpenRouter.");
-      }
-
-      // 5. Leer la respuesta
-      const data = await response.json();
-      const text = data.choices[0].message.content;
-      
+      // La consulta pasa por el intermediario de Vercel (proxy-ia), que guarda la clave de NVIDIA
+      const text = await consultarIA([{ role: 'user', content: prompt }], { tarea: 'diagnostico' });
       setAiDiagnosis(text);
 
     } catch (error) {

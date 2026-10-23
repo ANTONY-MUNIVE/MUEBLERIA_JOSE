@@ -26,4 +26,9 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Intermediario de IA: corre en Node (Vercel), no en el navegador
+    files: ['proxy-ia/**/*.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

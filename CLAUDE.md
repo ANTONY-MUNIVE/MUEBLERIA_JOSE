@@ -21,6 +21,7 @@ Responde en español; todo el texto visible de la app va en español de Perú.
 - `src/utils/firestoreSeguro.js`: `leerVarias()` lee varias colecciones sin que un error tumbe a las demás.
 - `src/config/redes.js`: redes sociales (CRUD en Admin › Info de la empresa, guardadas en `content/about.redes`).
 - `src/utils/similares.js` + `components/client/MueblesSimilares.jsx`: «muebles similares» en el detalle y el modal.
+- IA (chatbot y diagnóstico del Dashboard): `src/services/iaService.js` llama a `VITE_IA_URL`, un intermediario en Vercel (`proxy-ia/`, ver su README) que guarda `NVIDIA_API_KEY` y usa Nemotron 3.5 Lightning con Llama 3.1 8B de respaldo. Nunca ponga claves de IA en el frontend.
 - `src/config/app.js`: `APP_VERSION` (se guarda en cada venta y métrica; súbala al cambiar la interfaz).
 
 ## Diseño
@@ -53,5 +54,4 @@ Responde en español; todo el texto visible de la app va en español de Perú.
 - Reglas en `firestore.rules` (versión compatible: reglas originales + `esPersonal()` para la v2; se publican con `firebase deploy --only firestore:rules`). No se usa Storage (plan Spark): la captura de Yape se comprime con `src/utils/imagenes.js` y va en `capturasYape/{ventaId}` dentro de la transacción de la venta. Explicación en `docs/FIRESTORE_REGLAS.md`. Los roles se guardan con el nombre como ID (`roles/{nombre}`).
 - Los muebles antiguos no tienen código: Inventario → «Generar códigos faltantes».
 - La importación desde Excel no revisa códigos duplicados.
-- Hay 7 errores de ESLint anteriores a la v2 (AuthContext, CartContext, AdminCategories,
-  AdminPublications, Dashboard, Chatbot).
+- Hay 4 errores de ESLint anteriores a la v2 (AuthContext, CartContext, AdminCategories, AdminPublications).

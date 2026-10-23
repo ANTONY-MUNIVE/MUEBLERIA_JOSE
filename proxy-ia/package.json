@@ -1,0 +1,7 @@
+{
+  "name": "muebleria-jose-proxy-ia",
+  "private": true,
+  "type": "module",
+  "description": "Intermediario de IA (NVIDIA) para Mueblería Jose. Se despliega en Vercel con Root Directory = proxy-ia.",
+  "engines": { "node": ">=18" }
+}

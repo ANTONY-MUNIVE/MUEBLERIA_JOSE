@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '../../firebase/config';
 import { collection, getDocs } from 'firebase/firestore';
 import pepeGrilloGif from '../../assets/pinocho-07.gif';
+import { consultarIA } from '../../services/iaService';
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,43 +47,34 @@ export default function Chatbot() {
     setIsTyping(true);
 
     try {
-      const catalogoTexto = productos && productos.length > 0 
-        ? productos.map(p => `[Mueble: ${p.nombre} | Precio: S/. ${p.precio}]`).join('\n')
-        : "Actualmente estamos actualizando nuestro catálogo.";
+      // Catálogo resumido para que el asistente no invente productos
+      const catalogoTexto = productos && productos.length > 0
+        ? productos.slice(0, 300).map((p) => {
+            const stock = p.stock === undefined || p.stock === null || p.stock === '' ? '' : (Number(p.stock) > 0 ? ' | En tienda' : ' | Agotado (se puede pedir a medida)');
+            return `- ${p.nombre}${p.categoria ? ` (${p.categoria})` : ''} | S/ ${p.precio}${stock}`;
+          }).join('\n')
+        : 'El catálogo se está actualizando.';
 
-      const reglasOcultas = `[INSTRUCCIONES: Eres el vendedor de Mueblería Jose. Amable, persuasivo y muy breve. VENDES ESTO: ${catalogoTexto}. NUNCA inventes productos.]\n\nEl cliente dice: `;
-      const historialLimpio = newConversation.filter((msg, index) => index !== 0);
-      
-      const mensajesParaLaAPI = historialLimpio.map((msg, index) => {
-        if (index === historialLimpio.length - 1 && msg.role === "user") {
-          return { role: "user", content: reglasOcultas + msg.content };
-        }
-        return msg;
-      });
+      const sistema = {
+        role: 'system',
+        content: `Eres el asistente de ventas de Mueblería Jose, una mueblería de Huancayo (Perú).
+Responde siempre en español, de forma amable y breve (máximo 4 oraciones).
+Solo recomienda muebles de este catálogo, con su precio en soles; nunca inventes productos ni precios.
+Si algo no está en el catálogo, ofrece fabricarlo a medida y sugiere escribir por WhatsApp desde la página «Nosotros».
+No pidas datos personales (DNI, dirección, tarjetas).
 
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": window.location.origin,
-          "X-Title": "Chatbot Muebleria",
-        },
-        body: JSON.stringify({
-          model: "google/gemma-3-12b-it:free",
-          messages: mensajesParaLaAPI 
-        })
-      });
+CATÁLOGO:
+${catalogoTexto}`,
+      };
 
-      if (!response.ok) throw new Error("Error al conectar");
-      
-      const data = await response.json();
-      setMessages(prev => [...prev, { role: "assistant", content: data.choices[0].message.content }]);
+      // Se envían solo los últimos mensajes (sin el saludo inicial) para no exceder el límite
+      const historial = newConversation.slice(1).slice(-10).map((m) => ({ role: m.role, content: m.content }));
+      const respuesta = await consultarIA([sistema, ...historial], { tarea: 'chat' });
+      setMessages(prev => [...prev, { role: "assistant", content: respuesta }]);
 
     } catch (error) {
-      setMessages(prev => [...prev, { role: "assistant", content: "Uy, mi sistema está un poco lento. 😅 ¿Me lo repites?" }]);
+      console.error('Chatbot:', error);
+      setMessages(prev => [...prev, { role: "assistant", content: "Uy, mi sistema está un poco lento. 😅 ¿Me lo repites en un momento?" }]);
     } finally {
       setIsTyping(false);
     }
