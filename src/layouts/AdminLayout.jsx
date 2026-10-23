@@ -18,6 +18,7 @@ const AdminLayout = () => {
   
   // Estados para el bloqueo 404
   const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [errorPermisos, setErrorPermisos] = useState('');
   const [countdown, setCountdown] = useState(5);
 
   // Estado del menú lateral (escritorio) y del menú en celular
@@ -76,8 +77,9 @@ const AdminLayout = () => {
         }
 
       } catch (error) {
+        // Un error (reglas, conexión) no es lo mismo que «no tiene acceso»: se muestra tal cual
         console.error("Error verificando permisos:", error);
-        setIsUnauthorized(true);
+        setErrorPermisos(error?.code || error?.message || 'error desconocido');
       } finally {
         setCheckingPermissions(false);
       }
@@ -132,6 +134,28 @@ const AdminLayout = () => {
   }
 
   // 2. Pantalla 404 Fake
+  // 2a. No se pudieron leer los permisos (no es un 404: es un error que hay que corregir)
+  if (errorPermisos) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-hueso px-4">
+        <div className="max-w-lg w-full bg-white rounded-3xl p-8 text-center shadow-sm">
+          <i className="fas fa-lock text-4xl text-terracota mb-4"></i>
+          <h1 className="font-display text-2xl font-semibold">No se pudieron verificar tus permisos</h1>
+          <p className="text-cafe mt-2">
+            {errorPermisos.includes('permission-denied')
+              ? 'Firestore rechazó la lectura de tu perfil o de tu rol. Revise las reglas publicadas (firestore.rules).'
+              : 'Revise la conexión a internet e intente de nuevo.'}
+          </p>
+          <p className="text-xs text-cafe/80 mt-3">Código: {errorPermisos} · Usuario: {user?.email}</p>
+          <div className="flex flex-wrap justify-center gap-2 mt-6">
+            <button type="button" onClick={() => window.location.reload()} className="h-11 px-5 rounded-full bg-terracota text-espresso font-extrabold">Reintentar</button>
+            <button type="button" onClick={handleLogout} className="h-11 px-5 rounded-full border border-gray-400 font-extrabold">Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isUnauthorized) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-hueso text-center px-4">
