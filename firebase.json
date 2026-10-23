@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "munive-b3ba5",
     "public": "dist",
     "ignore": [
       "firebase.json",
