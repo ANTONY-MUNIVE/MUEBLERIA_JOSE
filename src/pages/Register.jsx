@@ -1,13 +1,9 @@
 import logoVertical from '../assets/logo-vertical.png';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { doc, setDoc } from 'firebase/firestore';
-
-// ================= RENIEC TOKEN =================
-// Token de apisperu.com en .env; si falta, el nombre se escribe a mano
-const RENIEC_TOKEN = import.meta.env.VITE_RENIEC_TOKEN;
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -20,10 +16,7 @@ const Register = () => {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [searchingDni, setSearchingDni] = useState(false);
-  const [isManual, setIsManual] = useState(false); 
-  const [dniMessage, setDniMessage] = useState(''); // <-- NUEVO ESTADO PARA MENSAJE AMIGABLE
-  
+
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -42,67 +35,15 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // El DNI solo admite dígitos (máximo 8)
   const handleDniChange = (e) => {
-    const value = e.target.value.replace(/\D/g, ''); 
-    setFormData({ ...formData, dni: value });
-    
-    // Si borra números, reiniciamos todo
-    if (value.length < 8) {
-      setFormData(prev => ({ ...prev, nombre: '' }));
-      setIsManual(false);
-      setDniMessage('');
-      setError('');
-    }
+    setFormData({ ...formData, dni: e.target.value.replace(/\D/g, '').slice(0, 8) });
   };
-
-  // ================= RENIEC POR DNI =================
-  useEffect(() => {
-    const fetchDNI = async () => {
-      const value = formData.dni;
-      if (value.length !== 8) return;
-
-      if (!RENIEC_TOKEN) {
-        setIsManual(true);
-        setDniMessage("El autocompletado por DNI no está disponible (falta VITE_RENIEC_TOKEN en .env). Escribe tu nombre manualmente.");
-        return;
-      }
-
-      setSearchingDni(true);
-      setError('');
-      setDniMessage('');
-
-      try {
-        const res = await fetch(`https://dniruc.apisperu.com/api/v1/dni/${value}?token=${RENIEC_TOKEN}`);
-        const data = await res.json();
-
-        if (data?.nombres) {
-          const nombreCompleto = `${data.nombres} ${data.apellidoPaterno} ${data.apellidoMaterno}`.toUpperCase();
-          setFormData(prev => ({ ...prev, nombre: nombreCompleto }));
-          setIsManual(false); 
-        } else {
-          // Si no existe, habilitamos manual y mostramos mensaje amigable
-          setIsManual(true);
-          setFormData(prev => ({ ...prev, nombre: '' }));
-          setDniMessage("No encontramos este DNI. Por favor, escribe tu nombre manualmente.");
-        }
-      } catch (err) {
-        console.error("RENIEC error:", err);
-        // Si la API falla, habilitamos manual
-        setIsManual(true);
-        setFormData(prev => ({ ...prev, nombre: '' }));
-        setDniMessage("No pudimos validar el DNI automáticamente. Escribe tu nombre manualmente.");
-      } finally {
-        setSearchingDni(false);
-      }
-    };
-
-    fetchDNI();
-  }, [formData.dni]); 
 
   const validateForm = () => {
     const { dni, nombre, email, password, confirmPassword } = formData;
 
-    if (!dni || dni.length !== 8) {
+    if (!/^\d{8}$/.test(dni)) {
       setError('Por favor ingresa un DNI válido de 8 dígitos.');
       return false;
     }
@@ -182,48 +123,33 @@ const Register = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           
           <div>
-            <label className="block text-gray-600 text-sm font-bold mb-1">DNI</label>
-            <div className="relative">
-                <input 
-                  type="text" 
-                  name="dni"
-                  maxLength="8"
-                  value={formData.dni}
-                  onChange={handleDniChange} 
-                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Escribe los 8 dígitos..."
-                />
-                {searchingDni && (
-                  <div className="absolute right-3 top-3 text-blue-500">
-                    <i className="fas fa-spinner fa-spin"></i>
-                  </div>
-                )}
-            </div>
+            <label htmlFor="dni" className="block text-gray-600 text-sm font-bold mb-1">DNI</label>
+            <input
+              id="dni"
+              type="text"
+              name="dni"
+              inputMode="numeric"
+              aria-required="true"
+              value={formData.dni}
+              onChange={handleDniChange}
+              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Escribe los 8 dígitos..."
+            />
           </div>
 
           <div>
-            <label className="block text-gray-600 text-sm font-bold mb-1">Nombre Completo</label>
-            <input 
-              type="text" 
+            <label htmlFor="nombre" className="block text-gray-600 text-sm font-bold mb-1">Nombre Completo</label>
+            <input
+              id="nombre"
+              type="text"
               name="nombre"
+              autoComplete="name"
+              aria-required="true"
               value={formData.nombre}
               onChange={handleChange}
-              readOnly={!isManual} 
-              className={`w-full border p-3 rounded-lg outline-none transition ${
-                !isManual && formData.dni.length === 8 
-                ? 'bg-blue-50 border-blue-200 font-bold text-gray-700' 
-                : !isManual 
-                ? 'bg-gray-50 border-gray-300 text-gray-500 cursor-not-allowed' 
-                : 'bg-white border-gray-300 focus:ring-2 focus:ring-blue-500' 
-              }`}
-              placeholder={isManual ? "Escribe tus nombres y apellidos" : "Autocompletado con tu DNI"}
+              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Escribe tus nombres y apellidos"
             />
-            {/* Mensaje amigable si el DNI no se encuentra */}
-            {dniMessage && (
-                <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
-                    <i className="fas fa-info-circle"></i> {dniMessage}
-                </p>
-            )}
           </div>
 
           <div>
