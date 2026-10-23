@@ -1,191 +1,149 @@
 rules_version = '2';
 
-// Reglas de Firestore — Mueblería Jose (v2.1)
-// Los permisos siguen los mismos módulos que se marcan en «Roles y permisos»:
-//   ventas, disponibilidad, inventario, pedidos_personalizados, reportes,
-//   dashboard, pedidos, productos, clientes, web, roles
-// «admin» y «superadmin» pueden todo. Cada rol se lee de roles/{nombre del rol}.
-// Publicar: firebase deploy --only firestore:rules  (o copiar en la consola → Firestore → Reglas)
+// Reglas de Firestore — Mueblería Jose
+// Versión compatible: las reglas originales del proyecto + el acceso del personal a la v2.
+// La única restricción nueva es que nadie puede cambiarse su propio rol.
+// Publicar: firebase deploy --only firestore:rules
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ===================== Funciones =====================
+    // =========================================================
+    // 1. FUNCIONES DE AYUDA (HELPERS)
+    // =========================================================
 
-    function logueado() {
+    // Verifica si el usuario está autenticado
+    function isLoggedIn() {
       return request.auth != null;
     }
 
-    function rutaUsuario() {
-      return /databases/$(database)/documents/users/$(request.auth.uid);
+    // Obtiene el NOMBRE del rol (string) desde la colección 'users'
+    function getUserRoleName() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    function tienePerfil() {
-      return logueado() && exists(rutaUsuario());
-    }
-
-    // Rol guardado en users/{uid}.role; si no tiene, se trata como cliente
-    function rol() {
-      return get(rutaUsuario()).data.get('role', 'cliente');
-    }
-
-    function esAdmin() {
-      return tienePerfil() && rol() in ['admin', 'superadmin'];
-    }
-
+    // Personal = usuario con sesión cuyo rol en /users no es «cliente»
     function esPersonal() {
-      return tienePerfil() && rol() != 'cliente';
+      return isLoggedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && getUserRoleName() != 'cliente';
     }
 
-    function rutaRol() {
-      return /databases/$(database)/documents/roles/$(rol());
+    // Verifica permisos consultando roles/{nombre del rol}.permissions
+    function hasPermission(validPermissions) {
+      return isLoggedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             exists(/databases/$(database)/documents/roles/$(getUserRoleName())) &&
+             get(/databases/$(database)/documents/roles/$(getUserRoleName())).data.permissions.hasAny(validPermissions);
     }
 
-    // ¿El rol del usuario tiene alguno de estos módulos marcados?
-    function rolPermite(modulos) {
-      return esPersonal()
-        && exists(rutaRol())
-        && get(rutaRol()).data.get('permissions', []).hasAny(modulos);
+    // Admin (por nombre de rol directo o por permiso 'admin')
+    function isAdmin() {
+      return isLoggedIn() && (
+        getUserRoleName() == 'admin' ||
+        getUserRoleName() == 'superadmin' ||
+        hasPermission(['admin', 'super_access'])
+      );
     }
 
-    function puede(modulos) {
-      return esAdmin() || rolPermite(modulos.concat(['admin', 'super_access']));
+    function isAlmacenero() {
+      return isLoggedIn() && (getUserRoleName() == 'almacenero' || isAdmin());
     }
 
-    // Compatibilidad con los roles que ya existían por nombre
-    function esRol(nombres) {
-      return tienePerfil() && rol() in nombres;
+    function isCarpintero() {
+      return isLoggedIn() && (getUserRoleName() == 'carpintero' || isAdmin());
     }
 
-    // ===================== Usuarios y roles =====================
+    // =========================================================
+    // 2. REGLAS POR COLECCIÓN
+    // =========================================================
 
+    // --- USUARIOS ---
     match /users/{userId} {
-      // Al registrarse, cada uno crea solo su propio perfil y siempre como cliente
-      allow create: if logueado()
+      // Al registrarse, cada uno crea solo su propio perfil y como cliente
+      allow create: if isLoggedIn()
         && request.auth.uid == userId
         && request.resource.data.get('role', 'cliente') == 'cliente';
 
-      allow read: if logueado() && (request.auth.uid == userId || puede(['roles']));
+      allow read: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
 
-      // El usuario edita sus datos, pero NO su rol; el rol lo asigna quien gestiona roles.
-      // Solo un admin puede dar el rol «admin» o «superadmin».
-      allow update: if logueado() && (
+      // El usuario edita sus datos pero NO su rol; el admin sí puede cambiarlo
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
         (request.auth.uid == userId
-          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid']))
-        || (puede(['roles'])
-          && (!(request.resource.data.get('role', '') in ['admin', 'superadmin']) || esAdmin()))
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
       );
 
-      allow delete: if esAdmin();
+      allow delete: if isAdmin();
     }
 
-    match /roles/{roleId} {
-      allow read: if logueado();
-      allow write: if puede(['roles']);
-    }
-
-    // ===================== Contenido público de la web =====================
-
+    // --- GESTIÓN DE LA WEB (CMS) ---
     match /content/{document=**} {
       allow read: if true;
-      allow write: if puede(['web']);
+      allow write: if isAdmin();
     }
     match /publications/{document=**} {
       allow read: if true;
-      allow write: if puede(['web']);
+      allow write: if isAdmin();
     }
     match /info-empresa/{document=**} {
       allow read: if true;
-      allow write: if puede(['web']);
+      allow write: if isAdmin();
     }
 
-    // ===================== Catálogo =====================
-
-    match /categories/{document=**} {
+    // --- PRODUCTOS E INVENTARIO ---
+    // Las ventas y los movimientos de inventario de la v2 también cambian el stock
+    match /muebles/{document=**} {
       allow read: if true;
-      allow write: if puede(['productos']) || esRol(['almacenero']);
-    }
-
-    // Las ventas y los movimientos de inventario también cambian el stock
-    match /muebles/{muebleId} {
-      allow read: if true;
-      allow create, update: if puede(['productos', 'inventario', 'ventas']) || esRol(['almacenero']);
-      allow delete: if puede(['productos']) || esRol(['almacenero']);
+      allow write: if isAlmacenero() || esPersonal();
     }
     match /products/{document=**} {
       allow read: if true;
-      allow write: if puede(['productos']) || esRol(['almacenero']);
+      allow write: if isAlmacenero();
+    }
+    match /categories/{document=**} {
+      allow read: if true;
+      allow write: if isAlmacenero();
     }
 
-    // ===================== Tienda (versión 2) =====================
+    // --- TIENDA (VERSIÓN 2) ---
+    match /ventas/{id}                { allow read, write: if esPersonal(); }
+    match /contadores/{id}            { allow read, write: if esPersonal(); }
+    match /pedidosPersonalizados/{id} { allow read, write: if esPersonal(); }
 
-    match /ventas/{ventaId} {
-      allow read: if puede(['ventas', 'reportes']);
-      allow create, update: if puede(['ventas']);
-      allow delete: if false; // las ventas se anulan, no se borran
-    }
+    // El kárdex y las métricas solo se agregan; no se editan ni se borran
+    match /movimientos/{id} { allow read, create: if esPersonal(); allow update, delete: if false; }
+    match /metricas/{id}    { allow read, create: if esPersonal(); allow update, delete: if false; }
 
-    match /contadores/{contadorId} {
-      allow read, write: if puede(['ventas']);
-    }
-
-    // Kárdex: solo se agregan movimientos; nunca se editan ni se borran
-    match /movimientos/{movId} {
-      allow read: if puede(['inventario', 'reportes', 'ventas', 'productos']);
-      allow create: if puede(['ventas', 'inventario', 'productos']);
-      allow update, delete: if false;
-    }
-
-    // Métricas de la tesis: cualquier miembro del personal las registra; nadie las altera
-    match /metricas/{metricaId} {
-      allow create: if esPersonal();
-      allow read: if puede(['reportes']);
-      allow update, delete: if false;
-    }
-
-    match /pedidosPersonalizados/{pedidoId} {
-      allow read, create, update: if puede(['pedidos_personalizados']);
-      allow delete: if esAdmin();
-    }
-
-    // ===================== Pedidos en línea =====================
-
+    // --- PEDIDOS EN LÍNEA (ORDERS) ---
     match /orders/{orderId} {
-      // Cada cliente crea pedidos a su nombre
-      allow create: if logueado() && request.resource.data.userId == request.auth.uid;
-
-      allow read: if logueado() && (
-        resource.data.userId == request.auth.uid
-        || puede(['pedidos', 'dashboard'])
-        || esRol(['carpintero', 'almacenero'])
+      allow create: if isLoggedIn();
+      allow read: if isLoggedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin() ||
+        isCarpintero() ||
+        isAlmacenero()
       );
-
-      allow update: if puede(['pedidos']) || esRol(['carpintero', 'almacenero']);
-      allow delete: if esAdmin();
+      allow update: if isAdmin() || isCarpintero() || isAlmacenero();
+      allow delete: if isAdmin();
     }
 
-    // Correlativo de los pedidos en línea (PED-000001)
-    match /counters/{counterId} {
-      allow read: if logueado();
-      allow create: if logueado()
-        && counterId == 'orders_counter'
-        && request.resource.data.keys().hasOnly(['count'])
-        && request.resource.data.count == 1;
-      // Solo se puede avanzar de uno en uno (nadie puede retroceder el correlativo)
-      allow update: if logueado()
-        && counterId == 'orders_counter'
-        && request.resource.data.keys().hasOnly(['count'])
-        && request.resource.data.count == resource.data.count + 1;
-      allow delete: if esAdmin();
+    // --- CONFIGURACIÓN DE ROLES ---
+    match /roles/{roleId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
     }
 
-    // ===================== Mensajes de contacto =====================
-
-    match /messages/{mensajeId} {
+    // --- MENSAJES Y SOPORTE ---
+    match /messages/{document=**} {
       allow create: if true;
-      allow read, update, delete: if puede(['clientes']) || rolPermite(['soporte', 'atencion_cliente']);
+      allow read, write: if isAdmin() || hasPermission(['soporte', 'atencion_cliente', 'carpintero', 'clientes']);
     }
 
-    // Todo lo demás queda cerrado por defecto.
+    // --- CONTADORES DE PEDIDOS EN LÍNEA ---
+    match /counters/{document=**} {
+      allow read, update: if isLoggedIn();
+      allow create: if isAdmin();
+    }
   }
 }

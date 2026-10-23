@@ -5,39 +5,25 @@ Las reglas ya están en el repositorio:
 - `firestore.rules`: todas las colecciones de la app (registrado en `firebase.json`).
 - `storage.rules`: carpeta `yape/` de las capturas de pago. Se publica a mano desde la consola.
 
-## Cómo funcionan los permisos
+## Cómo funcionan los permisos (versión compatible)
 
-Las reglas usan **los mismos módulos que se marcan en Roles y permisos**. Si un rol tiene marcado
-«Ventas», Firestore le deja registrar ventas; si no, lo rechaza aunque alguien abra la URL a mano.
+Son las reglas originales del proyecto con el acceso del personal a la versión 2:
 
 | Colección | Leer | Escribir |
 |---|---|---|
-| `muebles`, `categories`, `content`, `publications` | Todos (catálogo público) | `productos` (muebles: también `inventario` y `ventas`, que cambian el stock); `web` para contenido |
-| `ventas` | `ventas`, `reportes` | `ventas` (no se borran: se anulan) |
-| `contadores` | `ventas` | `ventas` |
-| `movimientos` (kárdex) | `inventario`, `reportes`, `ventas`, `productos` | Solo crear: `ventas`, `inventario`, `productos`. Nadie edita ni borra |
-| `metricas` | `reportes` | Solo crear, cualquier miembro del personal. Nadie edita ni borra |
-| `pedidosPersonalizados` | `pedidos_personalizados` | `pedidos_personalizados` (borrar: admin) |
-| `orders` | El dueño del pedido, `pedidos`, `dashboard` | Crear: el cliente a su nombre. Actualizar: `pedidos` |
-| `users` | Uno mismo, `roles` | Uno mismo **sin tocar su rol**; `roles` asigna roles; solo admin da «admin» |
-| `roles` | Cualquiera con sesión | `roles` |
-| `messages` | `clientes` | Crear: público (formulario de contacto) |
+| `muebles`, `categories`, `content`, `publications` | Todos | `muebles`: almacenero, admin o cualquier miembro del personal (las ventas cambian el stock). El resto: almacenero o admin |
+| `ventas`, `contadores`, `pedidosPersonalizados` | Personal (rol distinto de «cliente») | Personal |
+| `movimientos`, `metricas` | Personal | Solo crear; nadie edita ni borra |
+| `orders` | Dueño, admin, carpintero, almacenero | Crear: cualquiera con sesión. Actualizar: admin, carpintero, almacenero |
+| `users` | Uno mismo, admin | Uno mismo **sin tocar su rol**; admin |
+| `roles` | Cualquiera con sesión | Admin |
+| `messages` | Admin o roles con permiso de soporte | Crear: público |
 
-`admin` y `superadmin` pueden todo. Los roles antiguos `almacenero` y `carpintero` conservan lo que
-ya podían hacer.
+La única restricción nueva es que **ningún usuario puede cambiarse su propio rol**. Antes un
+cliente podía ponerse `role: "admin"` desde el navegador.
 
-### Qué corrige respecto de las reglas anteriores
-
-1. **Nadie puede subirse de rol.** Antes un cliente podía editar su propio documento y ponerse
-   `role: "admin"`. Ahora el usuario no puede cambiar su campo `role`, y al registrarse solo puede
-   crearse como cliente.
-2. **Los permisos por rol ahora funcionan.** Las reglas buscan `roles/{nombre}`, pero la app creaba
-   los roles con un ID automático, así que esa búsqueda nunca encontraba nada. Ahora la página de
-   Roles guarda cada rol con su nombre como ID, y al abrirla copia los roles antiguos al formato nuevo.
-3. Había **dos bloques para `muebles`** con condiciones distintas. Quedó uno solo.
-4. **Kárdex, métricas y ventas no se pueden borrar.** Así los datos de la tesis no se pierden ni
-   se alteran.
-5. **El correlativo de pedidos solo avanza de uno en uno**, y cada pedido queda a nombre de quien lo crea.
+Los permisos por módulo (Ventas, Inventario...) se controlan en el menú del panel. En Firestore,
+cualquier rol distinto de «cliente» puede usar las colecciones de la tienda.
 
 ## Cómo publicarlas
 
@@ -49,17 +35,15 @@ firebase deploy --only firestore:rules
 
 **Opción B, con la consola:** Firestore Database → Reglas → reemplace todo por el contenido de
 `firestore.rules` → **Publicar**. La consola marca en rojo cualquier error antes de publicar.
+En esa misma pantalla, el historial (a la izquierda) permite volver a una versión anterior.
 
 Storage: consola → Storage → Reglas → pegue `storage.rules` → **Publicar**.
 
-## Después de publicar (en este orden)
+## Después de publicar
 
-1. Despliegue la versión nueva de la app, para que la página de Roles guarde los roles por nombre.
-2. Entre con una cuenta **admin** y abra **Roles y permisos** una vez. Los roles antiguos se migran solos.
-3. Revise que cada rol tenga marcados sus módulos (por ejemplo, el vendedor con «Ventas» y «Disponibilidad»).
-4. Pruebe con una cuenta de cada rol: el menú y Firestore deben dejar hacer lo mismo.
-
-Si sale «Firestore no da permiso para leer...», a ese rol le falta marcar el módulo.
+1. Con la cuenta **admin**, en **Roles y permisos**, asigne un rol (que no sea «cliente») a cada trabajador.
+2. El trabajador cierra sesión y vuelve a entrar.
+3. Si sale «Firestore no da permiso...», revise que su documento en `users` tenga el campo `role` correcto.
 
 ## Probar sin escribir datos reales
 
